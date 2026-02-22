@@ -261,6 +261,7 @@ const Renderer = {
             case 'porsche_dakar': this._drawDakar(ctx, x, y, c); break;
             case 'deora_ii':      this._drawDeora(ctx, x, y, c); break;
             case 'night_shifter': this._drawNightShifter(ctx, x, y, c); break;
+            case 'unicorn':       this._drawUnicorn(ctx, x, y, c); break;
             default:              this._drawGeneric(ctx, x, y, c); break;
         }
     },
@@ -762,6 +763,255 @@ const Renderer = {
         ctx.beginPath(); ctx.arc(x - 6, y + 18, 1.5, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(x + 6, y + 18, 1.5, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(x + 14, y + 18, 1.5, 0, Math.PI * 2); ctx.fill();
+    },
+
+    // --- UNICORN: full side-profile, rainbow mane & tail, golden horn ---
+    _drawUnicorn(ctx, x, y, c) {
+        const rainbow = ['#e74c3c','#f39c12','#f1c40f','#2ecc71','#3498db','#9b59b6'];
+
+        // Shadow on ground
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath(); ctx.ellipse(x, y + 22, 46, 7, 0, 0, Math.PI * 2); ctx.fill();
+
+        // === LEGS (back pair slightly behind, front pair in front) ===
+        // Back legs (darker, behind body)
+        ctx.fillStyle = '#ddd';
+        // Back-left leg
+        ctx.beginPath();
+        ctx.moveTo(x + 14, y + 4);
+        ctx.lineTo(x + 10, y + 20);
+        ctx.lineTo(x + 8, y + 20);
+        ctx.quadraticCurveTo(x + 6, y + 22, x + 9, y + 22);
+        ctx.lineTo(x + 15, y + 22);
+        ctx.quadraticCurveTo(x + 17, y + 22, x + 16, y + 20);
+        ctx.lineTo(x + 20, y + 4);
+        ctx.closePath();
+        ctx.fill();
+        // Back-right leg (slightly bent — galloping pose)
+        ctx.beginPath();
+        ctx.moveTo(x + 24, y + 4);
+        ctx.lineTo(x + 28, y + 12);
+        ctx.lineTo(x + 22, y + 20);
+        ctx.lineTo(x + 20, y + 20);
+        ctx.quadraticCurveTo(x + 18, y + 22, x + 21, y + 22);
+        ctx.lineTo(x + 27, y + 22);
+        ctx.quadraticCurveTo(x + 29, y + 22, x + 28, y + 20);
+        ctx.lineTo(x + 34, y + 10);
+        ctx.lineTo(x + 30, y + 4);
+        ctx.closePath();
+        ctx.fill();
+
+        // Front legs (lighter, in front)
+        ctx.fillStyle = '#f0f0f0';
+        // Front-left leg (reaching forward — gallop)
+        ctx.beginPath();
+        ctx.moveTo(x - 18, y + 4);
+        ctx.lineTo(x - 28, y + 14);
+        ctx.lineTo(x - 34, y + 20);
+        ctx.lineTo(x - 36, y + 20);
+        ctx.quadraticCurveTo(x - 38, y + 22, x - 35, y + 22);
+        ctx.lineTo(x - 29, y + 22);
+        ctx.quadraticCurveTo(x - 27, y + 22, x - 28, y + 20);
+        ctx.lineTo(x - 22, y + 12);
+        ctx.lineTo(x - 14, y + 4);
+        ctx.closePath();
+        ctx.fill();
+        // Front-right leg
+        ctx.beginPath();
+        ctx.moveTo(x - 8, y + 4);
+        ctx.lineTo(x - 10, y + 20);
+        ctx.lineTo(x - 12, y + 20);
+        ctx.quadraticCurveTo(x - 14, y + 22, x - 11, y + 22);
+        ctx.lineTo(x - 5, y + 22);
+        ctx.quadraticCurveTo(x - 3, y + 22, x - 4, y + 20);
+        ctx.lineTo(x - 2, y + 4);
+        ctx.closePath();
+        ctx.fill();
+
+        // Hooves (gold)
+        ctx.fillStyle = c.accentColor;
+        ctx.fillRect(x + 8, y + 20, 8, 3);
+        ctx.fillRect(x + 20, y + 20, 8, 3);
+        ctx.fillRect(x - 36, y + 20, 8, 3);
+        ctx.fillRect(x - 12, y + 20, 8, 3);
+
+        // === BODY (muscular horse torso — side profile) ===
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(x - 24, y - 4);   // chest
+        ctx.quadraticCurveTo(x - 30, y - 16, x - 24, y - 28); // neck-chest curve
+        ctx.quadraticCurveTo(x - 14, y - 18, x + 0, y - 20);  // top of back
+        ctx.quadraticCurveTo(x + 16, y - 22, x + 30, y - 14);  // rump curve
+        ctx.quadraticCurveTo(x + 36, y - 6, x + 32, y + 6);   // hindquarters
+        ctx.lineTo(x + 14, y + 6);                              // belly back
+        ctx.quadraticCurveTo(x + 0, y + 8, x - 14, y + 6);    // belly
+        ctx.lineTo(x - 24, y - 4);                              // close at chest
+        ctx.closePath();
+        ctx.fill();
+
+        // Subtle muscle shading
+        ctx.fillStyle = 'rgba(0,0,0,0.04)';
+        ctx.beginPath();
+        ctx.ellipse(x + 20, y - 6, 14, 10, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(x - 10, y - 6, 10, 8, -0.1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // === RAINBOW TAIL (flowing behind — multiple colored strands) ===
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        for (let i = 0; i < rainbow.length; i++) {
+            ctx.strokeStyle = rainbow[i];
+            ctx.beginPath();
+            const offset = i * 2.5;
+            ctx.moveTo(x + 30, y - 12 + offset);
+            ctx.quadraticCurveTo(
+                x + 44, y - 20 + offset + i * 1.5,
+                x + 52, y - 30 + offset + i * 3
+            );
+            ctx.stroke();
+        }
+        // Thicker base strands for volume
+        ctx.lineWidth = 4;
+        for (let i = 0; i < 3; i++) {
+            ctx.strokeStyle = rainbow[i * 2];
+            ctx.globalAlpha = 0.4;
+            ctx.beginPath();
+            ctx.moveTo(x + 30, y - 10 + i * 4);
+            ctx.quadraticCurveTo(x + 42, y - 14 + i * 5, x + 50, y - 24 + i * 7);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = 1;
+        ctx.lineCap = 'butt';
+
+        // === NECK ===
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(x - 24, y - 28);   // base of neck at body
+        ctx.quadraticCurveTo(x - 30, y - 40, x - 28, y - 52);  // back of neck
+        ctx.lineTo(x - 22, y - 56);                              // top of neck
+        ctx.quadraticCurveTo(x - 18, y - 44, x - 20, y - 26);  // front of neck
+        ctx.closePath();
+        ctx.fill();
+
+        // === HEAD (side profile — horse head shape) ===
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(x - 22, y - 56);   // back of head
+        ctx.quadraticCurveTo(x - 24, y - 66, x - 20, y - 70);  // top of head (poll)
+        ctx.quadraticCurveTo(x - 14, y - 72, x - 10, y - 68);  // forehead
+        ctx.lineTo(x - 10, y - 64);                              // bridge of nose
+        ctx.quadraticCurveTo(x - 8, y - 58, x - 10, y - 54);   // nostril area
+        ctx.quadraticCurveTo(x - 14, y - 50, x - 18, y - 52);  // jaw
+        ctx.lineTo(x - 22, y - 56);
+        ctx.closePath();
+        ctx.fill();
+
+        // Nostril
+        ctx.fillStyle = '#ffcccc';
+        ctx.beginPath(); ctx.arc(x - 10, y - 55, 1.5, 0, Math.PI * 2); ctx.fill();
+
+        // Eye
+        ctx.fillStyle = '#2c1a4a';
+        ctx.beginPath(); ctx.ellipse(x - 16, y - 63, 2.5, 3, 0.2, 0, Math.PI * 2); ctx.fill();
+        // Eye highlight
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(x - 15.5, y - 64, 1, 0, Math.PI * 2); ctx.fill();
+
+        // Ear
+        ctx.fillStyle = '#f0f0f0';
+        ctx.beginPath();
+        ctx.moveTo(x - 20, y - 70);
+        ctx.lineTo(x - 18, y - 78);
+        ctx.lineTo(x - 16, y - 70);
+        ctx.closePath();
+        ctx.fill();
+        // Inner ear (pink)
+        ctx.fillStyle = '#ffb6c1';
+        ctx.beginPath();
+        ctx.moveTo(x - 19, y - 71);
+        ctx.lineTo(x - 18, y - 76);
+        ctx.lineTo(x - 17, y - 71);
+        ctx.closePath();
+        ctx.fill();
+
+        // === HORN (golden, spiraling) ===
+        ctx.fillStyle = c.accentColor;
+        ctx.beginPath();
+        ctx.moveTo(x - 18, y - 72);
+        ctx.lineTo(x - 14, y - 94);  // tip
+        ctx.lineTo(x - 14, y - 72);
+        ctx.closePath();
+        ctx.fill();
+        // Spiral grooves on horn
+        ctx.strokeStyle = '#c4971a';
+        ctx.lineWidth = 0.8;
+        for (let i = 0; i < 5; i++) {
+            const hy = y - 74 - i * 4;
+            const hw = 2 - i * 0.3;
+            ctx.beginPath();
+            ctx.moveTo(x - 18 + i * 0.6, hy);
+            ctx.lineTo(x - 14 - i * 0.1, hy);
+            ctx.stroke();
+        }
+        // Horn sparkle
+        ctx.fillStyle = '#fffbe6';
+        ctx.beginPath(); ctx.arc(x - 15, y - 90, 1.5, 0, Math.PI * 2); ctx.fill();
+
+        // === RAINBOW MANE (flowing down neck — multiple colors) ===
+        ctx.lineWidth = 3.5;
+        ctx.lineCap = 'round';
+        for (let i = 0; i < rainbow.length; i++) {
+            ctx.strokeStyle = rainbow[i];
+            ctx.beginPath();
+            const offset = i * 2;
+            ctx.moveTo(x - 20 + offset * 0.3, y - 68 + offset);
+            ctx.quadraticCurveTo(
+                x - 28 - i * 1.5, y - 56 + offset,
+                x - 26 - i * 0.8, y - 42 + offset * 1.5
+            );
+            ctx.stroke();
+        }
+        // Second wave of mane strands (further down neck)
+        ctx.lineWidth = 2.5;
+        for (let i = 0; i < rainbow.length; i++) {
+            ctx.strokeStyle = rainbow[i];
+            ctx.globalAlpha = 0.7;
+            ctx.beginPath();
+            const offset = i * 2;
+            ctx.moveTo(x - 24 - i * 0.5, y - 50 + offset);
+            ctx.quadraticCurveTo(
+                x - 32 - i, y - 40 + offset,
+                x - 28 - i * 0.5, y - 30 + offset * 1.2
+            );
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        ctx.lineWidth = 1;
+        ctx.lineCap = 'butt';
+
+        // === SPARKLES around the unicorn ===
+        ctx.fillStyle = '#f1c40f';
+        const sparkles = [
+            [x - 36, y - 60], [x + 38, y - 30], [x - 6, y - 80],
+            [x + 20, y - 32], [x - 40, y - 34], [x + 46, y - 18],
+        ];
+        for (const [sx, sy] of sparkles) {
+            // 4-pointed star
+            ctx.beginPath();
+            ctx.moveTo(sx, sy - 3);
+            ctx.lineTo(sx + 1, sy - 1);
+            ctx.lineTo(sx + 3, sy);
+            ctx.lineTo(sx + 1, sy + 1);
+            ctx.lineTo(sx, sy + 3);
+            ctx.lineTo(sx - 1, sy + 1);
+            ctx.lineTo(sx - 3, sy);
+            ctx.lineTo(sx - 1, sy - 1);
+            ctx.closePath();
+            ctx.fill();
+        }
     },
 
     // --- GENERIC fallback ---

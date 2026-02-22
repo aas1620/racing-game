@@ -81,4 +81,17 @@ const Cars = [
         stripeColor: '#00ff88',  // Neon green
         wheelColor: '#222',
     },
+    {
+        id: 'unicorn',
+        name: 'Sparkle Charger',
+        tagline: 'Majestic, unstoppable, 100% magical',
+        topSpeed: 8,
+        acceleration: 7,
+        handling: 8,
+        offRoad: 8,
+        bodyColor: '#ffffff',    // White body
+        accentColor: '#d4af37',  // Gold horn & hooves
+        stripeColor: '#ff69b4',  // Pink mane accent
+        wheelColor: '#333',
+    },
 ];
