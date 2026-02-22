@@ -56,9 +56,14 @@ const Renderer = {
 
             // Project from world coordinates to screen coordinates
             // This is the core perspective math!
+            // scale shrinks with distance (things far away look small)
             const scale = this.cameraDepth / segZ;
             const screenX = w / 2 + (curveAccum - car.x * this.roadWidth) * scale * w / 2;
-            const screenY = h / 2 - (this.cameraHeight + hillAccum) * scale * h / 2;
+            // Camera is above the road, so road projects BELOW the horizon (h/2).
+            // Near segments (large scale) → large screenY → bottom of screen.
+            // Far segments (small scale) → screenY near h/2 → horizon.
+            // Hills shift the road surface up (negative hillAccum → higher).
+            const screenY = h / 2 + (this.cameraHeight - hillAccum) * scale * h / 2;
             const screenW = this.roadWidth * scale * w / 2;
 
             projected.push({
@@ -76,22 +81,28 @@ const Renderer = {
             hillAccum += seg.hill * 30;
         }
 
-        // Second pass: draw from far to near (painter's algorithm — far things first, near things paint over)
+        // Second pass: draw from far to near (painter's algorithm)
+        // projected[0] = nearest segment (bottom of screen, wide road)
+        // projected[last] = farthest segment (near horizon, narrow road)
+        // We iterate backwards: draw far segments first, near segments paint over them.
         for (let i = projected.length - 1; i > 0; i--) {
-            const p = projected[i];
-            const prev = projected[i - 1];
+            const far = projected[i];         // farther segment (higher on screen, narrower)
+            const near = projected[i - 1];    // nearer segment (lower on screen, wider)
+
+            // Skip if this strip is above the near one (shouldn't happen on flat road)
+            if (far.screenY >= near.screenY) continue;
 
             const fogAmount = Math.min(1, i / this.drawDistance);
 
             // Alternating segment colors (like a barber pole — gives sense of speed)
-            const isEven = (p.segIndex % 2) === 0;
+            const isEven = (far.segIndex % 2) === 0;
 
             // === Draw grass (the ground on both sides of the road) ===
             ctx.fillStyle = this.fogColor(
                 isEven ? colors.grass : colors.grassLight,
                 colors.sky, fogAmount
             );
-            ctx.fillRect(0, prev.screenY, w, p.screenY - prev.screenY + 1);
+            ctx.fillRect(0, far.screenY, w, near.screenY - far.screenY + 1);
 
             // === Draw road surface ===
             ctx.fillStyle = this.fogColor(
@@ -99,66 +110,66 @@ const Renderer = {
                 colors.sky, fogAmount
             );
             this.drawTrapezoid(ctx,
-                prev.screenX, prev.screenW, prev.screenY,
-                p.screenX, p.screenW, p.screenY
+                far.screenX, far.screenW, far.screenY,
+                near.screenX, near.screenW, near.screenY
             );
 
             // === Draw rumble strips (red/white curbs) ===
-            const rumbleW = p.screenW * 1.15;
-            const prevRumbleW = prev.screenW * 1.15;
+            const farRumbleW = far.screenW * 1.15;
+            const nearRumbleW = near.screenW * 1.15;
             ctx.fillStyle = this.fogColor(
                 isEven ? colors.rumble : colors.rumbleLight,
                 colors.sky, fogAmount
             );
             // Left rumble
             this.drawTrapezoid(ctx,
-                prev.screenX - prevRumbleW, prevRumbleW * 0.15, prev.screenY,
-                p.screenX - rumbleW, rumbleW * 0.15, p.screenY
+                far.screenX - farRumbleW, farRumbleW * 0.15, far.screenY,
+                near.screenX - nearRumbleW, nearRumbleW * 0.15, near.screenY
             );
             // Right rumble
             this.drawTrapezoid(ctx,
-                prev.screenX + prevRumbleW * 0.85, prevRumbleW * 0.15, prev.screenY,
-                p.screenX + rumbleW * 0.85, rumbleW * 0.15, p.screenY
+                far.screenX + farRumbleW * 0.85, farRumbleW * 0.15, far.screenY,
+                near.screenX + nearRumbleW * 0.85, nearRumbleW * 0.15, near.screenY
             );
 
             // === Lane markings (dashed center line) ===
-            if (isEven && p.segIndex % 4 < 2) {
+            if (isEven && far.segIndex % 4 < 2) {
                 ctx.fillStyle = this.fogColor(colors.lane, colors.sky, fogAmount);
-                const laneW = p.screenW * 0.02;
-                const prevLaneW = prev.screenW * 0.02;
+                const farLaneW = far.screenW * 0.02;
+                const nearLaneW = near.screenW * 0.02;
                 this.drawTrapezoid(ctx,
-                    prev.screenX - prevLaneW / 2, prevLaneW, prev.screenY,
-                    p.screenX - laneW / 2, laneW, p.screenY
+                    far.screenX - farLaneW / 2, farLaneW, far.screenY,
+                    near.screenX - nearLaneW / 2, nearLaneW, near.screenY
                 );
             }
 
             // === Start/finish line ===
-            if (p.segIndex === 0 || p.segIndex === 1) {
+            if (far.segIndex === 0 || far.segIndex === 1) {
                 ctx.fillStyle = this.fogColor(colors.startLine, colors.sky, fogAmount);
                 ctx.globalAlpha = 0.7;
                 this.drawTrapezoid(ctx,
-                    prev.screenX, prev.screenW * 0.9, prev.screenY,
-                    p.screenX, p.screenW * 0.9, p.screenY
+                    far.screenX, far.screenW * 0.9, far.screenY,
+                    near.screenX, near.screenW * 0.9, near.screenY
                 );
                 ctx.globalAlpha = 1;
             }
 
             // === Scenery ===
             if (i < this.drawDistance * 0.8) { // Don't draw scenery too far away
-                const seg = p.segment;
+                const seg = far.segment;
                 if (seg.sceneryLeft) {
-                    const sx = p.screenX + seg.sceneryLeft.offset * p.screenW;
-                    Scenery.draw(ctx, seg.sceneryLeft.type, sx, p.screenY, p.scale * 40, colors);
+                    const sx = far.screenX + seg.sceneryLeft.offset * far.screenW;
+                    Scenery.draw(ctx, seg.sceneryLeft.type, sx, far.screenY, far.scale * 40, colors);
                 }
                 if (seg.sceneryRight) {
-                    const sx = p.screenX + seg.sceneryRight.offset * p.screenW;
-                    Scenery.draw(ctx, seg.sceneryRight.type, sx, p.screenY, p.scale * 40, colors);
+                    const sx = far.screenX + seg.sceneryRight.offset * far.screenW;
+                    Scenery.draw(ctx, seg.sceneryRight.type, sx, far.screenY, far.scale * 40, colors);
                 }
 
                 // Hazards
                 if (seg.hazard) {
-                    const hx = p.screenX + seg.hazard.lane * p.screenW;
-                    Scenery.drawHazard(ctx, seg.hazard.type, hx, p.screenY, p.scale * 40, time);
+                    const hx = far.screenX + seg.hazard.lane * far.screenW;
+                    Scenery.drawHazard(ctx, seg.hazard.type, hx, far.screenY, far.scale * 40, time);
                 }
             }
         }
@@ -195,10 +206,9 @@ const Renderer = {
         ctx.fill();
     },
 
-    drawCar(ctx, car, w, h) {
+    drawCar(ctx, car, w, h, time) {
         const centerX = w / 2;
         const carY = h - 100;
-        const steerOffset = car.x * w * 0.0; // Car stays centered, road moves
 
         // If crashed and exploding, particles handle the visual
         if (car.crashed && car.explosionTriggered) return;
@@ -211,6 +221,11 @@ const Renderer = {
             this.drawCarSprite(ctx, 0, 0, car);
             ctx.restore();
             return;
+        }
+
+        // Flash the car during invincibility (blink every 0.1s)
+        if (car.invincibleTimer > 0 && Math.floor(time * 10) % 2 === 0) {
+            return; // Skip drawing this frame = blink effect
         }
 
         ctx.save();

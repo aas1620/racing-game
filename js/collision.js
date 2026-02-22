@@ -5,6 +5,7 @@ const Collision = {
     // Check all possible collisions for the current frame
     check(car, road, canvas) {
         if (car.crashed) return null;
+        if (car.invincibleTimer > 0) return null;
 
         const segment = road.getSegment(car.position);
         if (!segment) return null;

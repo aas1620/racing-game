@@ -7,7 +7,7 @@ const HUD = {
         const h = canvas.height;
 
         // === SPEEDOMETER (bottom right) ===
-        this.drawSpeedometer(ctx, w - 150, h - 80, car.speedMPH);
+        this.drawSpeedometer(ctx, w - 150, h - 80, car.speedMPH, car.speed < 0);
 
         // === LAP COUNTER (top right) ===
         if (gameState.state === 'racing' || gameState.state === 'finished') {
@@ -49,15 +49,15 @@ const HUD = {
         }
     },
 
-    drawSpeedometer(ctx, x, y, mph) {
+    drawSpeedometer(ctx, x, y, mph, isReversing) {
         // Digital-style speed readout
         ctx.font = 'bold 48px monospace';
-        ctx.fillStyle = mph > 150 ? '#ff4444' : '#ffffff';
+        ctx.fillStyle = isReversing ? '#f39c12' : (mph > 150 ? '#ff4444' : '#ffffff');
         ctx.textAlign = 'right';
         ctx.fillText(mph, x + 60, y);
         ctx.font = 'bold 16px monospace';
         ctx.fillStyle = '#aaa';
-        ctx.fillText('MPH', x + 60, y + 20);
+        ctx.fillText(isReversing ? 'REV' : 'MPH', x + 60, y + 20);
     },
 
     drawLapCounter(ctx, x, y, current, total) {

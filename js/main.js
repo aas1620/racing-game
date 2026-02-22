@@ -128,7 +128,7 @@ const Game = {
 
         // Still render the road and car during countdown
         Renderer.render(Road, Car, this.time);
-        Renderer.drawCar(this.ctx, Car, this.canvas.width, this.canvas.height);
+        Renderer.drawCar(this.ctx, Car, this.canvas.width, this.canvas.height, this.time);
         HUD.draw(this.ctx, Car, this, this.canvas);
 
         if (this.countdown <= -0.5) {
@@ -157,8 +157,10 @@ const Game = {
         // Update particles
         Particles.update(dt);
 
-        // Track time
-        this.raceTime += dt;
+        // Track time (pauses during crashes)
+        if (!Car.crashed) {
+            this.raceTime += dt;
+        }
 
         // Lap completion
         if (completedLap) {
@@ -175,7 +177,7 @@ const Game = {
 
         // Render everything
         Renderer.render(Road, Car, this.time);
-        Renderer.drawCar(this.ctx, Car, this.canvas.width, this.canvas.height);
+        Renderer.drawCar(this.ctx, Car, this.canvas.width, this.canvas.height, this.time);
         Particles.draw(this.ctx);
         HUD.draw(this.ctx, Car, this, this.canvas);
     },
@@ -199,7 +201,7 @@ const Game = {
     updateFinished(dt) {
         // Render the scene frozen
         Renderer.render(Road, Car, this.time);
-        Renderer.drawCar(this.ctx, Car, this.canvas.width, this.canvas.height);
+        Renderer.drawCar(this.ctx, Car, this.canvas.width, this.canvas.height, this.time);
         HUD.draw(this.ctx, Car, this, this.canvas);
 
         // Wait for ENTER to go back to garage

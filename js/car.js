@@ -27,6 +27,7 @@ const Car = {
     crashTimer: 0,
     spinAngle: 0,
     explosionTriggered: false,
+    invincibleTimer: 0,  // Brief invincibility after crash recovery
 
     // Stats from selected car
     stats: null,
@@ -44,6 +45,7 @@ const Car = {
         this.crashTimer = 0;
         this.spinAngle = 0;
         this.explosionTriggered = false;
+        this.invincibleTimer = 0;
         this.stats = carDef;
         this.trackType = trackType || 'asphalt';
 
@@ -75,48 +77,79 @@ const Car = {
     update(dt, road, input) {
         if (this.crashed) {
             this.updateCrash(dt);
-            return;
+            return false;
         }
 
-        // Acceleration / braking
+        // Tick down invincibility
+        if (this.invincibleTimer > 0) {
+            this.invincibleTimer -= dt;
+        }
+
+        // Acceleration / braking / reverse
         if (input.up) {
-            this.speed += this.accel * dt;
+            if (this.speed < 0) {
+                // Pressing gas while in reverse = brake first
+                this.speed += this.braking * dt;
+            } else {
+                this.speed += this.accel * dt;
+            }
         } else if (input.down) {
-            this.speed -= this.braking * dt;
+            if (this.speed > 100) {
+                // Braking while moving forward
+                this.speed -= this.braking * dt;
+            } else {
+                // Stopped or slow — reverse!
+                this.speed -= this.accel * 0.4 * dt;
+            }
         } else {
-            // Natural deceleration
-            this.speed -= this.decel * dt;
+            // Natural deceleration toward zero
+            if (this.speed > 0) {
+                this.speed -= this.decel * dt;
+                if (this.speed < 0) this.speed = 0;
+            } else if (this.speed < 0) {
+                this.speed += this.decel * dt;
+                if (this.speed > 0) this.speed = 0;
+            }
         }
 
-        // Clamp speed
-        this.speed = Math.max(0, Math.min(this.speed, this.maxSpeed));
+        // Clamp speed (reverse caps at 30% of max)
+        const maxReverse = this.maxSpeed * 0.3;
+        this.speed = Math.max(-maxReverse, Math.min(this.speed, this.maxSpeed));
 
         // Steering
         this.steering = 0;
         if (input.left) this.steering = -1;
         if (input.right) this.steering = 1;
 
-        // Steering only works when moving
-        const speedPercent = this.speed / this.maxSpeed;
-        if (this.speed > 0) {
-            this.x += this.steering * this.steerSpeed * speedPercent * dt;
+        // Steering works when moving (inverted in reverse)
+        const absSpeed = Math.abs(this.speed);
+        const speedPercent = absSpeed / this.maxSpeed;
+        if (absSpeed > 0) {
+            const steerDir = this.speed >= 0 ? 1 : -1;
+            this.x += this.steering * steerDir * this.steerSpeed * speedPercent * dt;
         }
 
         // Visual tilt (smooth)
         const targetTilt = this.steering * speedPercent;
         this.tilt += (targetTilt - this.tilt) * 10 * dt;
 
-        // Get current road segment for curves
-        const segment = road.getSegment(this.position);
-        if (segment) {
-            // Centrifugal force — curves push you outward
-            this.x += segment.curve * this.centrifugal * speedPercent * speedPercent * dt * 60;
+        // Get current road segment for curves (only when moving forward)
+        if (this.speed > 0) {
+            const segment = road.getSegment(this.position);
+            if (segment) {
+                // Centrifugal force — curves push you outward
+                this.x += segment.curve * this.centrifugal * speedPercent * speedPercent * dt * 60;
+            }
         }
 
         // Off-road detection (past road edges)
         const isOffRoad = Math.abs(this.x) > 1.0;
         if (isOffRoad) {
-            this.speed *= this.offRoadDrag;
+            if (this.speed > 0) {
+                this.speed *= this.offRoadDrag;
+            } else if (this.speed < 0) {
+                this.speed *= this.offRoadDrag;
+            }
             // Bounce effect on rough terrain
             this.bounceSpeed += (Math.random() - 0.5) * 50 * dt;
         }
@@ -124,13 +157,17 @@ const Car = {
         this.bounceSpeed *= 0.9; // Dampen bounce
         this.bounce *= 0.9;
 
-        // Move forward
+        // Move forward (or backward)
         this.position += this.speed * dt;
 
-        // Wrap around track
+        // Wrap around track (forward)
         if (this.position >= road.trackLength) {
             this.position -= road.trackLength;
             return true; // Completed a lap!
+        }
+        // Wrap around track (reverse — don't go negative)
+        if (this.position < 0) {
+            this.position += road.trackLength;
         }
 
         return false;
@@ -152,16 +189,27 @@ const Car = {
     updateCrash(dt) {
         this.crashTimer -= dt;
         this.spinAngle += dt * 8;
+
+        // Gradually drift the car back toward center during crash
+        this.x *= 0.97;
+
         if (this.crashTimer <= 0) {
             this.crashed = false;
             this.spinAngle = 0;
             this.explosionTriggered = false;
+            // Respawn on the road with some speed
             if (this.speed < 1000) this.speed = 1000;
+            // Make sure car is back within road boundaries
+            if (Math.abs(this.x) > 0.8) {
+                this.x = Math.sign(this.x) * 0.6;
+            }
+            // Brief invincibility so you don't instantly re-crash
+            this.invincibleTimer = 1.0;
         }
     },
 
     get speedMPH() {
-        // Convert game speed to a human-readable MPH
-        return Math.round(this.speed / 80);
+        // Convert game speed to a human-readable MPH (absolute value)
+        return Math.round(Math.abs(this.speed) / 80);
     },
 };
