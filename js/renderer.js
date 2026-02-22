@@ -32,7 +32,7 @@ const Renderer = {
         const colors = road.colors;
 
         // === SKY ===
-        this.drawSky(ctx, w, h, colors);
+        this.drawSky(ctx, w, h, colors, road);
 
         // === ROAD (the pseudo-3D part) ===
         const baseSegmentIndex = Math.floor(car.position / road.segmentLength);
@@ -105,10 +105,16 @@ const Renderer = {
             ctx.fillRect(0, far.screenY, w, near.screenY - far.screenY + 1);
 
             // === Draw road surface ===
-            ctx.fillStyle = this.fogColor(
-                isEven ? colors.road : colors.roadLight,
-                colors.sky, fogAmount
-            );
+            let roadColor;
+            if (road.rainbowRoad && road.rainbowColors.length > 0) {
+                // Cycle through rainbow colors every 4 segments
+                const rc = road.rainbowColors;
+                const colorIndex = Math.floor(far.segIndex / 4) % rc.length;
+                roadColor = rc[colorIndex];
+            } else {
+                roadColor = isEven ? colors.road : colors.roadLight;
+            }
+            ctx.fillStyle = this.fogColor(roadColor, colors.sky, fogAmount);
             this.drawTrapezoid(ctx,
                 far.screenX, far.screenW, far.screenY,
                 near.screenX, near.screenW, near.screenY
@@ -175,7 +181,7 @@ const Renderer = {
         }
     },
 
-    drawSky(ctx, w, h, colors) {
+    drawSky(ctx, w, h, colors, road) {
         // Gradient sky
         const grad = ctx.createLinearGradient(0, 0, 0, h / 2);
         grad.addColorStop(0, colors.sky);
@@ -183,17 +189,53 @@ const Renderer = {
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, w, h / 2);
 
-        // Mountains / distant terrain silhouette
-        ctx.fillStyle = this.blendColors(colors.sky, colors.skyHorizon, 0.5);
-        ctx.beginPath();
-        ctx.moveTo(0, h / 2);
-        for (let x = 0; x <= w; x += 40) {
-            const mountainY = h / 2 - 20 - Math.sin(x * 0.005) * 30 - Math.sin(x * 0.013) * 15;
-            ctx.lineTo(x, mountainY);
+        if (road && road.rainbowRoad) {
+            // Starfield instead of mountains
+            this._drawStarfield(ctx, w, h);
+        } else {
+            // Mountains / distant terrain silhouette
+            ctx.fillStyle = this.blendColors(colors.sky, colors.skyHorizon, 0.5);
+            ctx.beginPath();
+            ctx.moveTo(0, h / 2);
+            for (let x = 0; x <= w; x += 40) {
+                const mountainY = h / 2 - 20 - Math.sin(x * 0.005) * 30 - Math.sin(x * 0.013) * 15;
+                ctx.lineTo(x, mountainY);
+            }
+            ctx.lineTo(w, h / 2);
+            ctx.closePath();
+            ctx.fill();
         }
-        ctx.lineTo(w, h / 2);
-        ctx.closePath();
-        ctx.fill();
+    },
+
+    _drawStarfield(ctx, w, h) {
+        // Dense starfield for Rainbow Road's night sky
+        ctx.fillStyle = '#ffffff';
+        // Use seeded positions so stars don't flicker
+        for (let i = 0; i < 80; i++) {
+            const sx = (Math.sin(i * 127.1) * 0.5 + 0.5) * w;
+            const sy = (Math.sin(i * 311.7) * 0.5 + 0.5) * (h / 2 - 20);
+            const size = (Math.sin(i * 73.3) * 0.5 + 0.5) * 2 + 0.5;
+            ctx.globalAlpha = 0.4 + (Math.sin(i * 43.7) * 0.5 + 0.5) * 0.6;
+            ctx.beginPath();
+            ctx.arc(sx, sy, size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        // A few brighter colored stars
+        const brightStars = [
+            { x: 0.15, y: 0.12, color: '#ff99cc', size: 3 },
+            { x: 0.72, y: 0.08, color: '#99ccff', size: 2.5 },
+            { x: 0.45, y: 0.2, color: '#ffffaa', size: 3.5 },
+            { x: 0.88, y: 0.15, color: '#ffaaff', size: 2 },
+            { x: 0.3, y: 0.05, color: '#aaffcc', size: 2.5 },
+        ];
+        for (const star of brightStars) {
+            ctx.globalAlpha = 0.9;
+            ctx.fillStyle = star.color;
+            ctx.beginPath();
+            ctx.arc(star.x * w, star.y * h, star.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
     },
 
     drawTrapezoid(ctx, x1, w1, y1, x2, w2, y2) {

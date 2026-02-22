@@ -59,6 +59,8 @@ const Road = {
         // Store track colors and info
         this.colors = trackDef.colors;
         this.name = trackDef.name;
+        this.rainbowRoad = trackDef.rainbowRoad || false;
+        this.rainbowColors = trackDef.rainbowColors || [];
         this.sceneryTypes = trackDef.sceneryTypes || [];
         this.hazards = trackDef.hazards || [];
 

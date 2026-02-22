@@ -119,4 +119,50 @@ const Tracks = [
             { type: 'rattlesnake', positions: [200, 380], lane: 0.1, width: 0.25 },
         ],
     },
+    {
+        id: 'rainbow',
+        name: 'Rainbow Road',
+        description: 'A magical road through the stars',
+        type: 'asphalt',
+        laps: 2,
+        rainbowRoad: true,
+        colors: {
+            sky: '#0a0020',              // Deep space purple
+            skyHorizon: '#1a0040',
+            road: '#cc44ff',             // Fallback — overridden by rainbow logic
+            roadLight: '#ff44cc',
+            rumble: '#ffd700',           // Gold sparkle edges
+            rumbleLight: '#ffe866',
+            grass: '#0d0028',            // Dark void (you're in the sky!)
+            grassLight: '#100030',
+            lane: '#ffffff',
+            startLine: '#ffd700',
+        },
+        // Rainbow colors used by the renderer to cycle road segments
+        rainbowColors: [
+            '#ff4444', '#ff8844', '#ffdd44',  // red, orange, yellow
+            '#44dd44', '#4488ff', '#8844ff',  // green, blue, purple
+        ],
+        sections: [
+            // Flowing, dreamy — big swooping curves and hills like floating through space
+            { enter: 10, hold: 30, leave: 10, curve: 0, hill: 0 },       // Launchpad
+            { enter: 15, hold: 20, leave: 15, curve: 2, hill: 3 },       // Climb into the sky
+            { enter: 10, hold: 15, leave: 10, curve: -2.5, hill: 1 },    // Left through clouds
+            { enter: 10, hold: 25, leave: 10, curve: 0, hill: -2 },      // Gentle dip
+            { enter: 15, hold: 20, leave: 15, curve: 3, hill: 2 },       // Big right spiral up
+            { enter: 10, hold: 10, leave: 10, curve: -3, hill: -1 },     // Quick left, falling
+            { enter: 5, hold: 15, leave: 5, curve: 0, hill: 4 },         // Steep climb!
+            { enter: 5, hold: 15, leave: 5, curve: 0, hill: -4 },        // Big drop!
+            { enter: 15, hold: 25, leave: 15, curve: -2, hill: 1 },      // Sweeping left rise
+            { enter: 10, hold: 30, leave: 10, curve: 1.5, hill: 0 },     // Long gentle right
+            { enter: 15, hold: 15, leave: 15, curve: -2, hill: 2 },      // Left spiral up
+            { enter: 10, hold: 10, leave: 10, curve: 2, hill: -2 },      // Right spiral down
+            { enter: 10, hold: 20, leave: 10, curve: -1, hill: 1 },      // Gentle drift up
+            { enter: 5, hold: 50, leave: 5, curve: 0, hill: -1 },        // Glide to finish
+        ],
+        sceneryTypes: ['cloud_pink', 'cloud_yellow', 'star_cluster', 'rainbow_arch'],
+        hazards: [
+            { type: 'shooting_star', positions: [150, 320], lane: 0, width: 0.3 },
+        ],
+    },
 ];
