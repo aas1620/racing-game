@@ -208,9 +208,7 @@ const Renderer = {
     },
 
     _drawStarfield(ctx, w, h) {
-        // Dense starfield for Rainbow Road's night sky
         ctx.fillStyle = '#ffffff';
-        // Use seeded positions so stars don't flicker
         for (let i = 0; i < 80; i++) {
             const sx = (Math.sin(i * 127.1) * 0.5 + 0.5) * w;
             const sy = (Math.sin(i * 311.7) * 0.5 + 0.5) * (h / 2 - 20);
@@ -220,7 +218,6 @@ const Renderer = {
             ctx.arc(sx, sy, size, 0, Math.PI * 2);
             ctx.fill();
         }
-        // A few brighter colored stars
         const brightStars = [
             { x: 0.15, y: 0.12, color: '#ff99cc', size: 3 },
             { x: 0.72, y: 0.08, color: '#99ccff', size: 2.5 },
@@ -282,12 +279,21 @@ const Renderer = {
     },
 
     // =====================================================
-    // CAR SPRITES — Rear view (what you see from behind)
+    // CAR SPRITES — 3D shaded rear views
     //
     // Coordinate system: (0,0) = center of car
     //   -y = top of screen (roof)
     //   +y = bottom of screen (bumper, closest to viewer)
     //   -x = left, +x = right
+    //
+    // 3D techniques used:
+    //   - Linear gradients on body panels (light top, dark bottom)
+    //   - Side edge darkening for volume
+    //   - Specular highlights (white ellipse overlay)
+    //   - Glowing taillights (shadowBlur)
+    //   - Radial gradient shadows
+    //   - Gradient tires with rim highlight
+    //   - Window reflections
     // =====================================================
 
     drawCarSprite(ctx, x, y, car) {
@@ -308,37 +314,43 @@ const Renderer = {
         }
     },
 
-    // --- TWIN MILL: wide muscle car, twin hood scoops visible above roof ---
+    // --- TWIN MILL: wide muscle car, twin hood scoops ---
     _drawTwinMill(ctx, x, y, c) {
-        // Shadow
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        ctx.beginPath(); ctx.ellipse(x, y + 22, 44, 8, 0, 0, Math.PI * 2); ctx.fill();
+        this._drawShadow(ctx, x, y + 22, 46, 10);
+        this._draw3DTire(ctx, x - 46, y - 10, 12, 30);
+        this._draw3DTire(ctx, x + 34, y - 10, 12, 30);
 
-        // Rear tires (wide, visible from behind)
-        ctx.fillStyle = '#222';
-        ctx.fillRect(x - 46, y - 10, 12, 30);
-        ctx.fillRect(x + 34, y - 10, 12, 30);
-        // Tire highlight
-        ctx.fillStyle = '#444';
-        ctx.fillRect(x - 44, y - 8, 3, 26);
-        ctx.fillRect(x + 43, y - 8, 3, 26);
-
-        // Main body — wide muscle car rear
-        ctx.fillStyle = c.bodyColor;
+        // Body with gradient
+        ctx.fillStyle = this._bodyGrad(ctx, x, y - 42, y + 18, c.bodyColor);
         ctx.beginPath();
-        ctx.moveTo(x - 38, y + 18);     // bottom-left
-        ctx.lineTo(x - 40, y - 8);      // left side
-        ctx.lineTo(x - 36, y - 30);     // left shoulder
-        ctx.lineTo(x - 22, y - 42);     // roof-left
-        ctx.lineTo(x + 22, y - 42);     // roof-right
-        ctx.lineTo(x + 36, y - 30);     // right shoulder
-        ctx.lineTo(x + 40, y - 8);      // right side
-        ctx.lineTo(x + 38, y + 18);     // bottom-right
+        ctx.moveTo(x - 38, y + 18);
+        ctx.lineTo(x - 40, y - 8);
+        ctx.lineTo(x - 36, y - 30);
+        ctx.lineTo(x - 22, y - 42);
+        ctx.lineTo(x + 22, y - 42);
+        ctx.lineTo(x + 36, y - 30);
+        ctx.lineTo(x + 40, y - 8);
+        ctx.lineTo(x + 38, y + 18);
         ctx.closePath();
         ctx.fill();
 
-        // Rear window
-        ctx.fillStyle = '#1a2a3a';
+        // Side edge shading
+        this._sideShade(ctx, x, y, -38, -40, -36, -22, 18, -8, -30);
+        this._sideShade(ctx, x, y, 38, 40, 36, 22, 18, -8, -30);
+
+        // Edge highlight on roof
+        ctx.strokeStyle = this._lighten(c.bodyColor, 0.4);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x - 22, y - 42);
+        ctx.lineTo(x + 22, y - 42);
+        ctx.stroke();
+
+        // Specular highlight
+        this._specHighlight(ctx, x, y - 18, 26, 5);
+
+        // Window with reflection
+        ctx.fillStyle = this._windowGrad(ctx, x, y - 38, y - 28);
         ctx.beginPath();
         ctx.moveTo(x - 18, y - 38);
         ctx.lineTo(x - 14, y - 28);
@@ -346,58 +358,49 @@ const Renderer = {
         ctx.lineTo(x + 18, y - 38);
         ctx.closePath();
         ctx.fill();
+        this._windowReflection(ctx, x - 15, y - 36, x - 5, y - 30);
 
-        // Twin engine scoops above the roofline
-        ctx.fillStyle = c.accentColor;
+        // Twin engine scoops with gradient
+        ctx.fillStyle = this._bodyGrad(ctx, x, y - 52, y - 40, c.accentColor);
         ctx.fillRect(x - 14, y - 52, 10, 12);
         ctx.fillRect(x + 4, y - 52, 10, 12);
-        // Scoop intakes (dark slots)
         ctx.fillStyle = '#111';
         ctx.fillRect(x - 12, y - 52, 6, 4);
         ctx.fillRect(x + 6, y - 52, 6, 4);
 
-        // Gold racing stripe (center, vertical)
-        ctx.fillStyle = c.stripeColor;
+        // Gold racing stripe with metallic sheen
+        const sg = ctx.createLinearGradient(x - 2, y, x + 2, y);
+        sg.addColorStop(0, this._darken(c.stripeColor, 0.15));
+        sg.addColorStop(0.5, this._lighten(c.stripeColor, 0.25));
+        sg.addColorStop(1, this._darken(c.stripeColor, 0.15));
+        ctx.fillStyle = sg;
         ctx.fillRect(x - 2, y - 42, 4, 58);
 
-        // Rear bumper
-        ctx.fillStyle = '#333';
-        ctx.fillRect(x - 34, y + 14, 68, 6);
+        // Bumper with gradient
+        this._drawBumper(ctx, x - 34, y + 14, 68, 6);
 
-        // Taillights — wide rectangular
-        ctx.fillStyle = '#e74c3c';
-        ctx.fillRect(x - 34, y + 4, 14, 8);
-        ctx.fillRect(x + 20, y + 4, 14, 8);
+        // Taillights with glow
+        this._glowTaillight(ctx, x - 27, y + 6, 14, 8);
+        this._glowTaillight(ctx, x + 13, y + 6, 14, 8);
 
         // Exhaust pipes
-        ctx.fillStyle = '#666';
-        ctx.beginPath(); ctx.arc(x - 12, y + 18, 4, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 12, y + 18, 4, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#333';
-        ctx.beginPath(); ctx.arc(x - 12, y + 18, 2.5, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 12, y + 18, 2.5, 0, Math.PI * 2); ctx.fill();
+        this._drawExhaust(ctx, x - 12, y + 18, 4);
+        this._drawExhaust(ctx, x + 12, y + 18, 4);
     },
 
-    // --- BONE SHAKER: hot rod, exposed engine above cab, skull on rear ---
+    // --- BONE SHAKER: hot rod, exposed engine, skull ---
     _drawBoneShaker(ctx, x, y, c) {
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        ctx.beginPath(); ctx.ellipse(x, y + 22, 44, 8, 0, 0, Math.PI * 2); ctx.fill();
+        this._drawShadow(ctx, x, y + 22, 48, 10);
+        this._draw3DTire(ctx, x - 48, y - 12, 14, 32);
+        this._draw3DTire(ctx, x + 34, y - 12, 14, 32);
 
-        // Fat rear tires
-        ctx.fillStyle = '#333';
-        ctx.fillRect(x - 48, y - 12, 14, 32);
-        ctx.fillRect(x + 34, y - 12, 14, 32);
-        ctx.fillStyle = '#555';
-        ctx.fillRect(x - 46, y - 10, 3, 28);
-        ctx.fillRect(x + 45, y - 10, 3, 28);
-
-        // Body — boxy hot rod rear, narrower than tires
-        ctx.fillStyle = c.bodyColor;
+        // Body with gradient
+        ctx.fillStyle = this._bodyGrad(ctx, x, y - 36, y + 18, c.bodyColor);
         ctx.beginPath();
         ctx.moveTo(x - 34, y + 18);
         ctx.lineTo(x - 36, y - 8);
         ctx.lineTo(x - 30, y - 28);
-        ctx.lineTo(x - 18, y - 36);     // chopped roof
+        ctx.lineTo(x - 18, y - 36);
         ctx.lineTo(x + 18, y - 36);
         ctx.lineTo(x + 30, y - 28);
         ctx.lineTo(x + 36, y - 8);
@@ -405,40 +408,61 @@ const Renderer = {
         ctx.closePath();
         ctx.fill();
 
-        // Exposed engine block (tall, above the roof)
-        ctx.fillStyle = '#777';
+        // Side shading
+        this._sideShade(ctx, x, y, -34, -36, -30, -18, 18, -8, -28);
+        this._sideShade(ctx, x, y, 34, 36, 30, 18, 18, -8, -28);
+
+        // Edge highlight
+        ctx.strokeStyle = this._lighten(c.bodyColor, 0.3);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x - 18, y - 36);
+        ctx.lineTo(x + 18, y - 36);
+        ctx.stroke();
+
+        this._specHighlight(ctx, x, y - 14, 24, 5);
+
+        // Exposed engine block with metallic gradient
+        const eg = ctx.createLinearGradient(x, y - 52, x, y - 34);
+        eg.addColorStop(0, '#999');
+        eg.addColorStop(0.5, '#888');
+        eg.addColorStop(1, '#555');
+        ctx.fillStyle = eg;
         ctx.fillRect(x - 10, y - 52, 20, 18);
-        // Intake stacks
-        ctx.fillStyle = c.accentColor;
+        // Intake stacks with gradient
+        ctx.fillStyle = this._bodyGrad(ctx, x, y - 58, y - 50, c.accentColor);
         ctx.fillRect(x - 8, y - 58, 5, 8);
         ctx.fillRect(x - 1, y - 58, 5, 8);
         ctx.fillRect(x + 6, y - 58, 5, 8);
         // Valve covers
-        ctx.fillStyle = '#555';
+        const vg = ctx.createLinearGradient(x, y - 42, x, y - 39);
+        vg.addColorStop(0, '#777');
+        vg.addColorStop(1, '#444');
+        ctx.fillStyle = vg;
         ctx.fillRect(x - 9, y - 42, 18, 3);
 
-        // Chopped rear window (short)
-        ctx.fillStyle = '#1a2a3a';
+        // Chopped window with reflection
+        ctx.fillStyle = this._windowGrad(ctx, x, y - 33, y - 25);
         ctx.fillRect(x - 14, y - 33, 28, 8);
+        this._windowReflection(ctx, x - 10, y - 32, x - 2, y - 27);
 
-        // Skull emblem on rear panel
-        ctx.fillStyle = c.accentColor;
+        // Skull emblem with shading
+        const skullGrad = ctx.createRadialGradient(x, y + 2, 0, x, y + 2, 10);
+        skullGrad.addColorStop(0, this._lighten(c.accentColor, 0.2));
+        skullGrad.addColorStop(1, this._darken(c.accentColor, 0.15));
+        ctx.fillStyle = skullGrad;
         ctx.beginPath(); ctx.arc(x, y + 2, 10, 0, Math.PI * 2); ctx.fill();
-        // Eyes
         ctx.fillStyle = '#111';
         ctx.beginPath(); ctx.arc(x - 4, y - 1, 3, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(x + 4, y - 1, 3, 0, Math.PI * 2); ctx.fill();
-        // Nose
         ctx.fillRect(x - 1, y + 3, 2, 3);
-        // Teeth
         ctx.fillStyle = '#ddd';
         for (let i = -4; i <= 4; i += 2) {
             ctx.fillRect(x + i - 1, y + 7, 2, 3);
         }
 
-        // Flame decals on fenders
+        // Flame decals
         ctx.fillStyle = c.stripeColor;
-        // Left
         ctx.beginPath();
         ctx.moveTo(x - 34, y + 12);
         ctx.lineTo(x - 28, y - 2);
@@ -448,7 +472,6 @@ const Renderer = {
         ctx.lineTo(x - 34, y + 4);
         ctx.closePath();
         ctx.fill();
-        // Right
         ctx.beginPath();
         ctx.moveTo(x + 34, y + 12);
         ctx.lineTo(x + 28, y - 2);
@@ -459,30 +482,22 @@ const Renderer = {
         ctx.closePath();
         ctx.fill();
 
-        // Taillights — small round
-        ctx.fillStyle = '#e74c3c';
-        ctx.beginPath(); ctx.arc(x - 28, y + 12, 4, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 28, y + 12, 4, 0, Math.PI * 2); ctx.fill();
+        // Taillights with glow
+        this._glowTaillightRound(ctx, x - 28, y + 12, 4);
+        this._glowTaillightRound(ctx, x + 28, y + 12, 4);
 
-        // Big single exhaust
-        ctx.fillStyle = '#666';
-        ctx.beginPath(); ctx.arc(x, y + 18, 5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#333';
-        ctx.beginPath(); ctx.arc(x, y + 18, 3, 0, Math.PI * 2); ctx.fill();
+        // Exhaust
+        this._drawExhaust(ctx, x, y + 18, 5);
     },
 
-    // --- PORSCHE 911 TURBO: wide hips, whale tail spoiler, round taillights ---
+    // --- PORSCHE 911 TURBO: wide hips, whale tail, round taillights ---
     _drawPorsche911(ctx, x, y, c) {
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        ctx.beginPath(); ctx.ellipse(x, y + 22, 42, 8, 0, 0, Math.PI * 2); ctx.fill();
+        this._drawShadow(ctx, x, y + 22, 44, 10);
+        this._draw3DTire(ctx, x - 44, y - 8, 11, 28);
+        this._draw3DTire(ctx, x + 33, y - 8, 11, 28);
 
-        // Rear tires
-        ctx.fillStyle = '#222';
-        ctx.fillRect(x - 44, y - 8, 11, 28);
-        ctx.fillRect(x + 33, y - 8, 11, 28);
-
-        // Body — wide hips tapering to narrower roof (911 rear shape)
-        ctx.fillStyle = c.bodyColor;
+        // Body with gradient — curves
+        ctx.fillStyle = this._bodyGrad(ctx, x, y - 44, y + 18, c.bodyColor);
         ctx.beginPath();
         ctx.moveTo(x - 38, y + 18);
         ctx.lineTo(x - 40, y - 6);
@@ -493,8 +508,52 @@ const Renderer = {
         ctx.closePath();
         ctx.fill();
 
-        // Whale tail spoiler
-        ctx.fillStyle = c.stripeColor;
+        // Hip highlights (characteristic 911 wide hips)
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        ctx.beginPath();
+        ctx.ellipse(x - 32, y - 10, 8, 18, 0.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(x + 32, y - 10, 8, 18, -0.1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Side edge darkening
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.beginPath();
+        ctx.moveTo(x - 38, y + 18);
+        ctx.lineTo(x - 40, y - 6);
+        ctx.bezierCurveTo(x - 42, y - 16, x - 40, y - 28, x - 30, y - 38);
+        ctx.lineTo(x - 26, y - 36);
+        ctx.bezierCurveTo(x - 36, y - 26, x - 38, y - 14, x - 36, y - 4);
+        ctx.lineTo(x - 34, y + 18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x + 38, y + 18);
+        ctx.lineTo(x + 40, y - 6);
+        ctx.bezierCurveTo(x + 42, y - 16, x + 40, y - 28, x + 30, y - 38);
+        ctx.lineTo(x + 26, y - 36);
+        ctx.bezierCurveTo(x + 36, y - 26, x + 38, y - 14, x + 36, y - 4);
+        ctx.lineTo(x + 34, y + 18);
+        ctx.closePath();
+        ctx.fill();
+
+        // Specular sweep across body
+        this._specHighlight(ctx, x, y - 18, 28, 5);
+
+        // Edge highlight
+        ctx.strokeStyle = this._lighten(c.bodyColor, 0.35);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x - 20, y - 44);
+        ctx.lineTo(x + 20, y - 44);
+        ctx.stroke();
+
+        // Whale tail spoiler with 3D depth
+        const spoilerGrad = ctx.createLinearGradient(x, y - 50, x, y - 44);
+        spoilerGrad.addColorStop(0, this._lighten(c.stripeColor, 0.3));
+        spoilerGrad.addColorStop(1, this._darken(c.stripeColor, 0.2));
+        ctx.fillStyle = spoilerGrad;
         ctx.beginPath();
         ctx.moveTo(x - 42, y - 44);
         ctx.lineTo(x - 40, y - 50);
@@ -502,13 +561,16 @@ const Renderer = {
         ctx.lineTo(x + 42, y - 44);
         ctx.closePath();
         ctx.fill();
+        // Spoiler underside (dark)
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillRect(x - 38, y - 44, 76, 2);
         // Spoiler supports
-        ctx.fillStyle = c.bodyColor;
+        ctx.fillStyle = this._darken(c.bodyColor, 0.15);
         ctx.fillRect(x - 20, y - 46, 4, 6);
         ctx.fillRect(x + 16, y - 46, 4, 6);
 
-        // Rear window (wide, curved)
-        ctx.fillStyle = '#1a2a3a';
+        // Rear window with reflection
+        ctx.fillStyle = this._windowGrad(ctx, x, y - 40, y - 28);
         ctx.beginPath();
         ctx.moveTo(x - 16, y - 40);
         ctx.quadraticCurveTo(x, y - 44, x + 16, y - 40);
@@ -516,23 +578,22 @@ const Renderer = {
         ctx.lineTo(x - 14, y - 28);
         ctx.closePath();
         ctx.fill();
+        this._windowReflection(ctx, x - 12, y - 38, x - 2, y - 30);
 
-        // Rear panel center (between taillights)
-        ctx.fillStyle = c.stripeColor;
+        // Rear panel accent
+        const panelGrad = ctx.createLinearGradient(x - 10, y, x + 10, y);
+        panelGrad.addColorStop(0, this._darken(c.stripeColor, 0.1));
+        panelGrad.addColorStop(0.5, this._lighten(c.stripeColor, 0.15));
+        panelGrad.addColorStop(1, this._darken(c.stripeColor, 0.1));
+        ctx.fillStyle = panelGrad;
         ctx.fillRect(x - 10, y + 2, 20, 4);
 
-        // Round taillights (iconic 911)
-        ctx.fillStyle = '#e74c3c';
-        ctx.beginPath(); ctx.arc(x - 28, y + 4, 6, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 28, y + 4, 6, 0, Math.PI * 2); ctx.fill();
-        // Inner ring
-        ctx.fillStyle = '#cc2222';
-        ctx.beginPath(); ctx.arc(x - 28, y + 4, 3.5, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 28, y + 4, 3.5, 0, Math.PI * 2); ctx.fill();
+        // Round taillights with glow (iconic 911)
+        this._glowTaillightRound(ctx, x - 28, y + 4, 6);
+        this._glowTaillightRound(ctx, x + 28, y + 4, 6);
 
-        // Rear bumper
-        ctx.fillStyle = '#333';
-        ctx.fillRect(x - 32, y + 14, 64, 5);
+        // Bumper
+        this._drawBumper(ctx, x - 32, y + 14, 64, 5);
 
         // License plate
         ctx.fillStyle = '#eee';
@@ -542,37 +603,28 @@ const Renderer = {
         ctx.textAlign = 'center';
         ctx.fillText('911', x, y + 16);
 
-        // Side accent line
+        // Side accent lines
         ctx.strokeStyle = c.accentColor;
         ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(x - 38, y + 0);
-        ctx.lineTo(x - 30, y + 0);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x + 38, y + 0);
-        ctx.lineTo(x + 30, y + 0);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x - 38, y); ctx.lineTo(x - 30, y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + 38, y); ctx.lineTo(x + 30, y); ctx.stroke();
     },
 
-    // --- PORSCHE DAKAR: raised 911 rear, roof rack + lights, fender flares ---
+    // --- PORSCHE DAKAR: raised 911, roof rack + lights, fender flares ---
     _drawDakar(ctx, x, y, c) {
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        ctx.beginPath(); ctx.ellipse(x, y + 22, 46, 8, 0, 0, Math.PI * 2); ctx.fill();
+        this._drawShadow(ctx, x, y + 22, 48, 10);
 
-        // Chunky rally tires (wider)
-        ctx.fillStyle = '#444';
-        ctx.fillRect(x - 48, y - 10, 14, 30);
-        ctx.fillRect(x + 34, y - 10, 14, 30);
-        // Tread pattern
+        // Chunky rally tires with tread
+        this._draw3DTire(ctx, x - 48, y - 10, 14, 30);
+        this._draw3DTire(ctx, x + 34, y - 10, 14, 30);
         ctx.fillStyle = '#666';
         for (let i = 0; i < 4; i++) {
             ctx.fillRect(x - 46, y - 6 + i * 7, 10, 2);
             ctx.fillRect(x + 36, y - 6 + i * 7, 10, 2);
         }
 
-        // Body — like the 911 but raised, with fender flares
-        ctx.fillStyle = c.bodyColor;
+        // Body with gradient
+        ctx.fillStyle = this._bodyGrad(ctx, x, y - 44, y + 16, c.bodyColor);
         ctx.beginPath();
         ctx.moveTo(x - 36, y + 16);
         ctx.lineTo(x - 38, y - 8);
@@ -583,8 +635,11 @@ const Renderer = {
         ctx.closePath();
         ctx.fill();
 
-        // Fender flares (bulging out beyond body)
-        ctx.fillStyle = c.accentColor;
+        this._specHighlight(ctx, x, y - 16, 26, 5);
+
+        // Fender flares with gradient
+        const flareGrad = this._bodyGrad(ctx, x, y - 14, y + 16, c.accentColor);
+        ctx.fillStyle = flareGrad;
         ctx.beginPath();
         ctx.moveTo(x - 38, y + 16);
         ctx.quadraticCurveTo(x - 48, y + 0, x - 38, y - 14);
@@ -600,19 +655,32 @@ const Renderer = {
         ctx.closePath();
         ctx.fill();
 
-        // Roof rack with rally lights
-        ctx.fillStyle = '#555';
+        // Roof rack with metallic gradient
+        const rackGrad = ctx.createLinearGradient(x, y - 52, x, y - 45);
+        rackGrad.addColorStop(0, '#777');
+        rackGrad.addColorStop(1, '#444');
+        ctx.fillStyle = rackGrad;
         ctx.fillRect(x - 18, y - 48, 36, 3);
         ctx.fillRect(x - 16, y - 52, 3, 6);
         ctx.fillRect(x + 13, y - 52, 3, 6);
-        // Three rally lights
+
+        // Rally lights with glow
+        ctx.save();
+        ctx.shadowColor = '#f1c40f';
+        ctx.shadowBlur = 10;
         ctx.fillStyle = '#f1c40f';
         ctx.beginPath(); ctx.arc(x - 8, y - 50, 3.5, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(x, y - 50, 3.5, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(x + 8, y - 50, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+        // Light bright centers
+        ctx.fillStyle = '#fffbe6';
+        ctx.beginPath(); ctx.arc(x - 8, y - 50, 1.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y - 50, 1.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 8, y - 50, 1.5, 0, Math.PI * 2); ctx.fill();
 
-        // Rear window
-        ctx.fillStyle = '#1a2a3a';
+        // Rear window with reflection
+        ctx.fillStyle = this._windowGrad(ctx, x, y - 40, y - 28);
         ctx.beginPath();
         ctx.moveTo(x - 14, y - 40);
         ctx.quadraticCurveTo(x, y - 44, x + 14, y - 40);
@@ -620,42 +688,45 @@ const Renderer = {
         ctx.lineTo(x - 12, y - 28);
         ctx.closePath();
         ctx.fill();
+        this._windowReflection(ctx, x - 10, y - 38, x - 2, y - 30);
 
-        // Number plate (on rear)
-        ctx.fillStyle = c.stripeColor;
+        // Number plate
+        const npGrad = ctx.createLinearGradient(x - 8, y, x + 8, y);
+        npGrad.addColorStop(0, this._darken(c.stripeColor, 0.1));
+        npGrad.addColorStop(0.5, c.stripeColor);
+        npGrad.addColorStop(1, this._darken(c.stripeColor, 0.1));
+        ctx.fillStyle = npGrad;
         ctx.fillRect(x - 8, y + 0, 16, 10);
         ctx.fillStyle = c.accentColor;
         ctx.font = 'bold 8px monospace';
         ctx.textAlign = 'center';
         ctx.fillText('53', x, y + 8);
 
-        // Taillights
-        ctx.fillStyle = '#e74c3c';
-        ctx.beginPath(); ctx.arc(x - 26, y + 4, 5, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 26, y + 4, 5, 0, Math.PI * 2); ctx.fill();
+        // Taillights with glow
+        this._glowTaillightRound(ctx, x - 26, y + 4, 5);
+        this._glowTaillightRound(ctx, x + 26, y + 4, 5);
 
-        // Skid plate
-        ctx.fillStyle = '#888';
+        // Skid plate with metallic look
+        const spGrad = ctx.createLinearGradient(x, y + 16, x, y + 19);
+        spGrad.addColorStop(0, '#aaa');
+        spGrad.addColorStop(1, '#666');
+        ctx.fillStyle = spGrad;
         ctx.fillRect(x - 24, y + 16, 48, 3);
     },
 
-    // --- DEORA II: tall wedge from behind, surfboard, wide glass ---
+    // --- DEORA II: tall wedge, surfboard, wide glass ---
     _drawDeora(ctx, x, y, c) {
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        ctx.beginPath(); ctx.ellipse(x, y + 22, 40, 8, 0, 0, Math.PI * 2); ctx.fill();
+        this._drawShadow(ctx, x, y + 22, 42, 10);
+        this._draw3DTire(ctx, x - 42, y - 6, 11, 26);
+        this._draw3DTire(ctx, x + 31, y - 6, 11, 26);
 
-        // Rear tires
-        ctx.fillStyle = '#333';
-        ctx.fillRect(x - 42, y - 6, 11, 26);
-        ctx.fillRect(x + 31, y - 6, 11, 26);
-
-        // Tall wedge body — wider at top, narrower at bottom
-        ctx.fillStyle = c.bodyColor;
+        // Tall wedge body with gradient
+        ctx.fillStyle = this._bodyGrad(ctx, x, y - 46, y + 18, c.bodyColor);
         ctx.beginPath();
         ctx.moveTo(x - 34, y + 18);
         ctx.lineTo(x - 36, y - 4);
         ctx.lineTo(x - 38, y - 22);
-        ctx.lineTo(x - 32, y - 46);     // tall!
+        ctx.lineTo(x - 32, y - 46);
         ctx.lineTo(x + 32, y - 46);
         ctx.lineTo(x + 38, y - 22);
         ctx.lineTo(x + 36, y - 4);
@@ -663,8 +734,40 @@ const Renderer = {
         ctx.closePath();
         ctx.fill();
 
-        // Big rear hatch glass (Deora's signature — huge rear window)
-        ctx.fillStyle = '#2a5a7a';
+        // Side edge shading
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.beginPath();
+        ctx.moveTo(x - 34, y + 18);
+        ctx.lineTo(x - 36, y - 4);
+        ctx.lineTo(x - 38, y - 22);
+        ctx.lineTo(x - 32, y - 46);
+        ctx.lineTo(x - 28, y - 44);
+        ctx.lineTo(x - 34, y - 20);
+        ctx.lineTo(x - 32, y - 2);
+        ctx.lineTo(x - 30, y + 18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x + 34, y + 18);
+        ctx.lineTo(x + 36, y - 4);
+        ctx.lineTo(x + 38, y - 22);
+        ctx.lineTo(x + 32, y - 46);
+        ctx.lineTo(x + 28, y - 44);
+        ctx.lineTo(x + 34, y - 20);
+        ctx.lineTo(x + 32, y - 2);
+        ctx.lineTo(x + 30, y + 18);
+        ctx.closePath();
+        ctx.fill();
+
+        this._specHighlight(ctx, x, y - 20, 24, 5);
+
+        // Big rear hatch glass with tinted reflection
+        const glassGrad = ctx.createLinearGradient(x, y - 42, x, y - 10);
+        glassGrad.addColorStop(0, '#1a4060');
+        glassGrad.addColorStop(0.3, '#2a6080');
+        glassGrad.addColorStop(0.7, '#3a7090');
+        glassGrad.addColorStop(1, '#2a5070');
+        ctx.fillStyle = glassGrad;
         ctx.beginPath();
         ctx.moveTo(x - 24, y - 42);
         ctx.lineTo(x + 24, y - 42);
@@ -672,16 +775,27 @@ const Renderer = {
         ctx.lineTo(x - 28, y - 10);
         ctx.closePath();
         ctx.fill();
-        // Glass center divider
-        ctx.strokeStyle = c.bodyColor;
+        // Glass divider
+        ctx.strokeStyle = this._darken(c.bodyColor, 0.1);
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(x, y - 42);
         ctx.lineTo(x, y - 10);
         ctx.stroke();
+        // Glass reflection
+        ctx.strokeStyle = 'rgba(150,200,255,0.25)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x - 20, y - 40);
+        ctx.lineTo(x - 14, y - 14);
+        ctx.stroke();
 
-        // Surfboard sticking up from bed (behind the cab)
-        ctx.fillStyle = c.accentColor;
+        // Surfboard with gradient
+        const sbGrad = ctx.createLinearGradient(x + 10, y, x + 14, y);
+        sbGrad.addColorStop(0, this._darken(c.accentColor, 0.1));
+        sbGrad.addColorStop(0.5, this._lighten(c.accentColor, 0.2));
+        sbGrad.addColorStop(1, this._darken(c.accentColor, 0.1));
+        ctx.fillStyle = sbGrad;
         ctx.beginPath();
         ctx.moveTo(x + 10, y - 46);
         ctx.lineTo(x + 12, y - 68);
@@ -691,8 +805,9 @@ const Renderer = {
         ctx.fillStyle = c.stripeColor;
         ctx.fillRect(x + 11, y - 62, 2, 14);
 
-        // Accent swoosh across rear
-        ctx.fillStyle = c.accentColor;
+        // Accent swoosh with gradient
+        const swooshGrad = this._bodyGrad(ctx, x, y + 0, y + 12, c.accentColor);
+        ctx.fillStyle = swooshGrad;
         ctx.beginPath();
         ctx.moveTo(x - 34, y + 8);
         ctx.quadraticCurveTo(x, y + 0, x + 34, y + 8);
@@ -701,33 +816,27 @@ const Renderer = {
         ctx.closePath();
         ctx.fill();
 
-        // Taillights (vertical strips on sides)
-        ctx.fillStyle = '#e74c3c';
-        ctx.fillRect(x - 34, y + 2, 5, 12);
-        ctx.fillRect(x + 29, y + 2, 5, 12);
+        // Taillights with glow (vertical)
+        this._glowTaillight(ctx, x - 34, y + 2, 5, 12);
+        this._glowTaillight(ctx, x + 29, y + 2, 5, 12);
 
         // Bumper
-        ctx.fillStyle = '#555';
-        ctx.fillRect(x - 28, y + 15, 56, 4);
+        this._drawBumper(ctx, x - 28, y + 15, 56, 4);
     },
 
-    // --- NIGHT SHIFTER: ultra-low, wide, angular, neon accents ---
+    // --- NIGHT SHIFTER: ultra-low, wide, angular, neon ---
     _drawNightShifter(ctx, x, y, c) {
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        ctx.beginPath(); ctx.ellipse(x, y + 22, 46, 8, 0, 0, Math.PI * 2); ctx.fill();
+        this._drawShadow(ctx, x, y + 22, 48, 10);
+        this._draw3DTire(ctx, x - 48, y - 4, 12, 24);
+        this._draw3DTire(ctx, x + 36, y - 4, 12, 24);
 
-        // Low-profile tires
-        ctx.fillStyle = '#1a1a1a';
-        ctx.fillRect(x - 48, y - 4, 12, 24);
-        ctx.fillRect(x + 36, y - 4, 12, 24);
-
-        // Ultra-wide, ultra-low body
-        ctx.fillStyle = c.bodyColor;
+        // Ultra-low body with gradient
+        ctx.fillStyle = this._bodyGrad(ctx, x, y - 34, y + 18, c.bodyColor);
         ctx.beginPath();
         ctx.moveTo(x - 42, y + 18);
         ctx.lineTo(x - 44, y - 2);
         ctx.lineTo(x - 38, y - 22);
-        ctx.lineTo(x - 20, y - 34);     // low roof
+        ctx.lineTo(x - 20, y - 34);
         ctx.lineTo(x + 20, y - 34);
         ctx.lineTo(x + 38, y - 22);
         ctx.lineTo(x + 44, y - 2);
@@ -735,8 +844,17 @@ const Renderer = {
         ctx.closePath();
         ctx.fill();
 
-        // Big angular rear spoiler
-        ctx.fillStyle = c.accentColor;
+        // Side edge darkening
+        this._sideShade(ctx, x, y, -42, -44, -38, -20, 18, -2, -22);
+        this._sideShade(ctx, x, y, 42, 44, 38, 20, 18, -2, -22);
+
+        this._specHighlight(ctx, x, y - 12, 30, 4);
+
+        // Spoiler with 3D depth
+        const spoilerGrad = ctx.createLinearGradient(x, y - 42, x, y - 34);
+        spoilerGrad.addColorStop(0, this._lighten(c.accentColor, 0.25));
+        spoilerGrad.addColorStop(1, this._darken(c.accentColor, 0.15));
+        ctx.fillStyle = spoilerGrad;
         ctx.beginPath();
         ctx.moveTo(x - 44, y - 34);
         ctx.lineTo(x - 42, y - 42);
@@ -744,13 +862,16 @@ const Renderer = {
         ctx.lineTo(x + 44, y - 34);
         ctx.closePath();
         ctx.fill();
-        // Spoiler end plates
+        // Spoiler underside
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillRect(x - 40, y - 34, 80, 2);
+        // End plates
         ctx.fillStyle = '#222';
         ctx.fillRect(x - 44, y - 42, 4, 10);
         ctx.fillRect(x + 40, y - 42, 4, 10);
 
-        // Angular rear window (narrow slit)
-        ctx.fillStyle = '#0a0a1a';
+        // Angular window
+        ctx.fillStyle = this._windowGrad(ctx, x, y - 31, y - 22);
         ctx.beginPath();
         ctx.moveTo(x - 16, y - 31);
         ctx.lineTo(x + 16, y - 31);
@@ -759,17 +880,16 @@ const Renderer = {
         ctx.closePath();
         ctx.fill();
 
-        // Neon accent lines (the glow!)
+        // Neon accent lines with glow
+        ctx.save();
         ctx.strokeStyle = c.stripeColor;
         ctx.lineWidth = 2;
         ctx.shadowColor = c.stripeColor;
-        ctx.shadowBlur = 8;
-        // Horizontal light bar across rear
+        ctx.shadowBlur = 10;
         ctx.beginPath();
         ctx.moveTo(x - 36, y + 4);
         ctx.lineTo(x + 36, y + 4);
         ctx.stroke();
-        // V-shaped accent on body
         ctx.beginPath();
         ctx.moveTo(x, y - 18);
         ctx.lineTo(x - 30, y + 0);
@@ -778,129 +898,127 @@ const Renderer = {
         ctx.moveTo(x, y - 18);
         ctx.lineTo(x + 30, y + 0);
         ctx.stroke();
-        ctx.shadowBlur = 0;
+        ctx.restore();
 
-        // Taillights — long thin LED strips
+        // LED strip taillights with glow
+        ctx.save();
+        ctx.shadowColor = c.accentColor;
+        ctx.shadowBlur = 8;
         ctx.fillStyle = c.accentColor;
         ctx.fillRect(x - 40, y + 8, 18, 3);
         ctx.fillRect(x + 22, y + 8, 18, 3);
+        ctx.restore();
+        ctx.fillStyle = 'rgba(255,200,255,0.4)';
+        ctx.fillRect(x - 38, y + 9, 14, 1);
+        ctx.fillRect(x + 24, y + 9, 14, 1);
 
-        // Diffuser (bottom)
-        ctx.fillStyle = '#333';
+        // Diffuser with depth
+        const diffGrad = ctx.createLinearGradient(x, y + 14, x, y + 19);
+        diffGrad.addColorStop(0, '#444');
+        diffGrad.addColorStop(1, '#1a1a1a');
+        ctx.fillStyle = diffGrad;
         ctx.fillRect(x - 32, y + 14, 64, 5);
-        // Diffuser fins
-        ctx.fillStyle = '#222';
+        ctx.fillStyle = '#111';
         for (let i = -2; i <= 2; i++) {
             ctx.fillRect(x + i * 12, y + 14, 2, 5);
         }
 
         // Quad exhaust
-        ctx.fillStyle = '#555';
-        ctx.beginPath(); ctx.arc(x - 14, y + 18, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x - 6, y + 18, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 6, y + 18, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 14, y + 18, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#222';
-        ctx.beginPath(); ctx.arc(x - 14, y + 18, 1.5, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x - 6, y + 18, 1.5, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 6, y + 18, 1.5, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 14, y + 18, 1.5, 0, Math.PI * 2); ctx.fill();
+        this._drawExhaust(ctx, x - 14, y + 18, 3);
+        this._drawExhaust(ctx, x - 6, y + 18, 3);
+        this._drawExhaust(ctx, x + 6, y + 18, 3);
+        this._drawExhaust(ctx, x + 14, y + 18, 3);
     },
 
-    // --- UNICORN: full side-profile, rainbow mane & tail, golden horn ---
+    // --- UNICORN: side-profile, rainbow mane & tail, golden horn ---
     _drawUnicorn(ctx, x, y, c) {
         const rainbow = ['#e74c3c','#f39c12','#f1c40f','#2ecc71','#3498db','#9b59b6'];
+        this._drawShadow(ctx, x, y + 22, 48, 9);
 
-        // Shadow on ground
-        ctx.fillStyle = 'rgba(0,0,0,0.2)';
-        ctx.beginPath(); ctx.ellipse(x, y + 22, 46, 7, 0, 0, Math.PI * 2); ctx.fill();
-
-        // === LEGS (back pair slightly behind, front pair in front) ===
+        // === LEGS ===
         // Back legs (darker, behind body)
-        ctx.fillStyle = '#ddd';
-        // Back-left leg
+        const legGrad1 = ctx.createLinearGradient(x + 5, y, x + 35, y);
+        legGrad1.addColorStop(0, '#e8e8e8');
+        legGrad1.addColorStop(1, '#ccc');
+        ctx.fillStyle = legGrad1;
         ctx.beginPath();
-        ctx.moveTo(x + 14, y + 4);
-        ctx.lineTo(x + 10, y + 20);
-        ctx.lineTo(x + 8, y + 20);
-        ctx.quadraticCurveTo(x + 6, y + 22, x + 9, y + 22);
-        ctx.lineTo(x + 15, y + 22);
-        ctx.quadraticCurveTo(x + 17, y + 22, x + 16, y + 20);
-        ctx.lineTo(x + 20, y + 4);
-        ctx.closePath();
-        ctx.fill();
-        // Back-right leg (slightly bent — galloping pose)
+        ctx.moveTo(x + 14, y + 4); ctx.lineTo(x + 10, y + 20); ctx.lineTo(x + 8, y + 20);
+        ctx.quadraticCurveTo(x + 6, y + 22, x + 9, y + 22); ctx.lineTo(x + 15, y + 22);
+        ctx.quadraticCurveTo(x + 17, y + 22, x + 16, y + 20); ctx.lineTo(x + 20, y + 4);
+        ctx.closePath(); ctx.fill();
         ctx.beginPath();
-        ctx.moveTo(x + 24, y + 4);
-        ctx.lineTo(x + 28, y + 12);
-        ctx.lineTo(x + 22, y + 20);
-        ctx.lineTo(x + 20, y + 20);
-        ctx.quadraticCurveTo(x + 18, y + 22, x + 21, y + 22);
-        ctx.lineTo(x + 27, y + 22);
-        ctx.quadraticCurveTo(x + 29, y + 22, x + 28, y + 20);
-        ctx.lineTo(x + 34, y + 10);
-        ctx.lineTo(x + 30, y + 4);
-        ctx.closePath();
-        ctx.fill();
+        ctx.moveTo(x + 24, y + 4); ctx.lineTo(x + 28, y + 12); ctx.lineTo(x + 22, y + 20);
+        ctx.lineTo(x + 20, y + 20); ctx.quadraticCurveTo(x + 18, y + 22, x + 21, y + 22);
+        ctx.lineTo(x + 27, y + 22); ctx.quadraticCurveTo(x + 29, y + 22, x + 28, y + 20);
+        ctx.lineTo(x + 34, y + 10); ctx.lineTo(x + 30, y + 4);
+        ctx.closePath(); ctx.fill();
 
-        // Front legs (lighter, in front)
-        ctx.fillStyle = '#f0f0f0';
-        // Front-left leg (reaching forward — gallop)
+        // Front legs (lighter)
+        const legGrad2 = ctx.createLinearGradient(x - 38, y, x - 2, y);
+        legGrad2.addColorStop(0, '#f8f8f8');
+        legGrad2.addColorStop(1, '#e8e8e8');
+        ctx.fillStyle = legGrad2;
         ctx.beginPath();
-        ctx.moveTo(x - 18, y + 4);
-        ctx.lineTo(x - 28, y + 14);
-        ctx.lineTo(x - 34, y + 20);
-        ctx.lineTo(x - 36, y + 20);
-        ctx.quadraticCurveTo(x - 38, y + 22, x - 35, y + 22);
-        ctx.lineTo(x - 29, y + 22);
-        ctx.quadraticCurveTo(x - 27, y + 22, x - 28, y + 20);
-        ctx.lineTo(x - 22, y + 12);
-        ctx.lineTo(x - 14, y + 4);
-        ctx.closePath();
-        ctx.fill();
-        // Front-right leg
+        ctx.moveTo(x - 18, y + 4); ctx.lineTo(x - 28, y + 14); ctx.lineTo(x - 34, y + 20);
+        ctx.lineTo(x - 36, y + 20); ctx.quadraticCurveTo(x - 38, y + 22, x - 35, y + 22);
+        ctx.lineTo(x - 29, y + 22); ctx.quadraticCurveTo(x - 27, y + 22, x - 28, y + 20);
+        ctx.lineTo(x - 22, y + 12); ctx.lineTo(x - 14, y + 4);
+        ctx.closePath(); ctx.fill();
         ctx.beginPath();
-        ctx.moveTo(x - 8, y + 4);
-        ctx.lineTo(x - 10, y + 20);
-        ctx.lineTo(x - 12, y + 20);
-        ctx.quadraticCurveTo(x - 14, y + 22, x - 11, y + 22);
-        ctx.lineTo(x - 5, y + 22);
-        ctx.quadraticCurveTo(x - 3, y + 22, x - 4, y + 20);
-        ctx.lineTo(x - 2, y + 4);
-        ctx.closePath();
-        ctx.fill();
+        ctx.moveTo(x - 8, y + 4); ctx.lineTo(x - 10, y + 20); ctx.lineTo(x - 12, y + 20);
+        ctx.quadraticCurveTo(x - 14, y + 22, x - 11, y + 22); ctx.lineTo(x - 5, y + 22);
+        ctx.quadraticCurveTo(x - 3, y + 22, x - 4, y + 20); ctx.lineTo(x - 2, y + 4);
+        ctx.closePath(); ctx.fill();
 
-        // Hooves (gold)
-        ctx.fillStyle = c.accentColor;
+        // Hooves with golden gradient
+        const hoofGrad = ctx.createLinearGradient(x, y + 20, x, y + 23);
+        hoofGrad.addColorStop(0, '#e8c430');
+        hoofGrad.addColorStop(1, '#a07818');
+        ctx.fillStyle = hoofGrad;
         ctx.fillRect(x + 8, y + 20, 8, 3);
         ctx.fillRect(x + 20, y + 20, 8, 3);
         ctx.fillRect(x - 36, y + 20, 8, 3);
         ctx.fillRect(x - 12, y + 20, 8, 3);
 
-        // === BODY (muscular horse torso — side profile) ===
-        ctx.fillStyle = '#ffffff';
+        // === BODY with pearly gradient ===
+        const bodyGrad = ctx.createLinearGradient(x, y - 22, x, y + 8);
+        bodyGrad.addColorStop(0, '#ffffff');
+        bodyGrad.addColorStop(0.4, '#f8f0ff');
+        bodyGrad.addColorStop(0.7, '#f0e8f8');
+        bodyGrad.addColorStop(1, '#e0d8e8');
+        ctx.fillStyle = bodyGrad;
         ctx.beginPath();
-        ctx.moveTo(x - 24, y - 4);   // chest
-        ctx.quadraticCurveTo(x - 30, y - 16, x - 24, y - 28); // neck-chest curve
-        ctx.quadraticCurveTo(x - 14, y - 18, x + 0, y - 20);  // top of back
-        ctx.quadraticCurveTo(x + 16, y - 22, x + 30, y - 14);  // rump curve
-        ctx.quadraticCurveTo(x + 36, y - 6, x + 32, y + 6);   // hindquarters
-        ctx.lineTo(x + 14, y + 6);                              // belly back
-        ctx.quadraticCurveTo(x + 0, y + 8, x - 14, y + 6);    // belly
-        ctx.lineTo(x - 24, y - 4);                              // close at chest
+        ctx.moveTo(x - 24, y - 4);
+        ctx.quadraticCurveTo(x - 30, y - 16, x - 24, y - 28);
+        ctx.quadraticCurveTo(x - 14, y - 18, x + 0, y - 20);
+        ctx.quadraticCurveTo(x + 16, y - 22, x + 30, y - 14);
+        ctx.quadraticCurveTo(x + 36, y - 6, x + 32, y + 6);
+        ctx.lineTo(x + 14, y + 6);
+        ctx.quadraticCurveTo(x + 0, y + 8, x - 14, y + 6);
+        ctx.lineTo(x - 24, y - 4);
         ctx.closePath();
         ctx.fill();
 
-        // Subtle muscle shading
-        ctx.fillStyle = 'rgba(0,0,0,0.04)';
+        // Muscle shading
+        ctx.fillStyle = 'rgba(180,160,200,0.08)';
         ctx.beginPath();
         ctx.ellipse(x + 20, y - 6, 14, 10, 0.2, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
         ctx.ellipse(x - 10, y - 6, 10, 8, -0.1, 0, Math.PI * 2);
         ctx.fill();
+        // Belly shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.05)';
+        ctx.beginPath();
+        ctx.ellipse(x + 4, y + 4, 24, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Back highlight
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(x, y - 20, 20, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
 
-        // === RAINBOW TAIL (flowing behind — multiple colored strands) ===
+        // === RAINBOW TAIL ===
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
         for (let i = 0; i < rainbow.length; i++) {
@@ -908,13 +1026,9 @@ const Renderer = {
             ctx.beginPath();
             const offset = i * 2.5;
             ctx.moveTo(x + 30, y - 12 + offset);
-            ctx.quadraticCurveTo(
-                x + 44, y - 20 + offset + i * 1.5,
-                x + 52, y - 30 + offset + i * 3
-            );
+            ctx.quadraticCurveTo(x + 44, y - 20 + offset + i * 1.5, x + 52, y - 30 + offset + i * 3);
             ctx.stroke();
         }
-        // Thicker base strands for volume
         ctx.lineWidth = 4;
         for (let i = 0; i < 3; i++) {
             ctx.strokeStyle = rainbow[i * 2];
@@ -928,25 +1042,28 @@ const Renderer = {
         ctx.lineWidth = 1;
         ctx.lineCap = 'butt';
 
-        // === NECK ===
-        ctx.fillStyle = '#ffffff';
+        // === NECK with gradient ===
+        const neckGrad = ctx.createLinearGradient(x - 30, y, x - 18, y);
+        neckGrad.addColorStop(0, '#f0e8f0');
+        neckGrad.addColorStop(1, '#ffffff');
+        ctx.fillStyle = neckGrad;
         ctx.beginPath();
-        ctx.moveTo(x - 24, y - 28);   // base of neck at body
-        ctx.quadraticCurveTo(x - 30, y - 40, x - 28, y - 52);  // back of neck
-        ctx.lineTo(x - 22, y - 56);                              // top of neck
-        ctx.quadraticCurveTo(x - 18, y - 44, x - 20, y - 26);  // front of neck
+        ctx.moveTo(x - 24, y - 28);
+        ctx.quadraticCurveTo(x - 30, y - 40, x - 28, y - 52);
+        ctx.lineTo(x - 22, y - 56);
+        ctx.quadraticCurveTo(x - 18, y - 44, x - 20, y - 26);
         ctx.closePath();
         ctx.fill();
 
-        // === HEAD (side profile — horse head shape) ===
-        ctx.fillStyle = '#ffffff';
+        // === HEAD with gradient ===
+        ctx.fillStyle = neckGrad;
         ctx.beginPath();
-        ctx.moveTo(x - 22, y - 56);   // back of head
-        ctx.quadraticCurveTo(x - 24, y - 66, x - 20, y - 70);  // top of head (poll)
-        ctx.quadraticCurveTo(x - 14, y - 72, x - 10, y - 68);  // forehead
-        ctx.lineTo(x - 10, y - 64);                              // bridge of nose
-        ctx.quadraticCurveTo(x - 8, y - 58, x - 10, y - 54);   // nostril area
-        ctx.quadraticCurveTo(x - 14, y - 50, x - 18, y - 52);  // jaw
+        ctx.moveTo(x - 22, y - 56);
+        ctx.quadraticCurveTo(x - 24, y - 66, x - 20, y - 70);
+        ctx.quadraticCurveTo(x - 14, y - 72, x - 10, y - 68);
+        ctx.lineTo(x - 10, y - 64);
+        ctx.quadraticCurveTo(x - 8, y - 58, x - 10, y - 54);
+        ctx.quadraticCurveTo(x - 14, y - 50, x - 18, y - 52);
         ctx.lineTo(x - 22, y - 56);
         ctx.closePath();
         ctx.fill();
@@ -955,54 +1072,56 @@ const Renderer = {
         ctx.fillStyle = '#ffcccc';
         ctx.beginPath(); ctx.arc(x - 10, y - 55, 1.5, 0, Math.PI * 2); ctx.fill();
 
-        // Eye
+        // Eye with depth
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.ellipse(x - 16, y - 63, 3, 3.5, 0.2, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#2c1a4a';
         ctx.beginPath(); ctx.ellipse(x - 16, y - 63, 2.5, 3, 0.2, 0, Math.PI * 2); ctx.fill();
-        // Eye highlight
         ctx.fillStyle = '#fff';
         ctx.beginPath(); ctx.arc(x - 15.5, y - 64, 1, 0, Math.PI * 2); ctx.fill();
 
         // Ear
         ctx.fillStyle = '#f0f0f0';
         ctx.beginPath();
-        ctx.moveTo(x - 20, y - 70);
-        ctx.lineTo(x - 18, y - 78);
-        ctx.lineTo(x - 16, y - 70);
-        ctx.closePath();
-        ctx.fill();
-        // Inner ear (pink)
+        ctx.moveTo(x - 20, y - 70); ctx.lineTo(x - 18, y - 78); ctx.lineTo(x - 16, y - 70);
+        ctx.closePath(); ctx.fill();
         ctx.fillStyle = '#ffb6c1';
         ctx.beginPath();
-        ctx.moveTo(x - 19, y - 71);
-        ctx.lineTo(x - 18, y - 76);
-        ctx.lineTo(x - 17, y - 71);
-        ctx.closePath();
-        ctx.fill();
+        ctx.moveTo(x - 19, y - 71); ctx.lineTo(x - 18, y - 76); ctx.lineTo(x - 17, y - 71);
+        ctx.closePath(); ctx.fill();
 
-        // === HORN (golden, spiraling) ===
-        ctx.fillStyle = c.accentColor;
+        // === HORN with golden gradient ===
+        const hornGrad = ctx.createLinearGradient(x - 18, y - 72, x - 14, y - 72);
+        hornGrad.addColorStop(0, '#c4971a');
+        hornGrad.addColorStop(0.3, '#f5d442');
+        hornGrad.addColorStop(0.7, '#e8c430');
+        hornGrad.addColorStop(1, '#b08518');
+        ctx.fillStyle = hornGrad;
         ctx.beginPath();
         ctx.moveTo(x - 18, y - 72);
-        ctx.lineTo(x - 14, y - 94);  // tip
+        ctx.lineTo(x - 14, y - 94);
         ctx.lineTo(x - 14, y - 72);
         ctx.closePath();
         ctx.fill();
-        // Spiral grooves on horn
-        ctx.strokeStyle = '#c4971a';
+        // Spiral grooves
+        ctx.strokeStyle = '#a07818';
         ctx.lineWidth = 0.8;
         for (let i = 0; i < 5; i++) {
             const hy = y - 74 - i * 4;
-            const hw = 2 - i * 0.3;
             ctx.beginPath();
             ctx.moveTo(x - 18 + i * 0.6, hy);
             ctx.lineTo(x - 14 - i * 0.1, hy);
             ctx.stroke();
         }
-        // Horn sparkle
+        // Horn sparkle with glow
+        ctx.save();
+        ctx.shadowColor = '#fffbe6';
+        ctx.shadowBlur = 6;
         ctx.fillStyle = '#fffbe6';
         ctx.beginPath(); ctx.arc(x - 15, y - 90, 1.5, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
 
-        // === RAINBOW MANE (flowing down neck — multiple colors) ===
+        // === RAINBOW MANE ===
         ctx.lineWidth = 3.5;
         ctx.lineCap = 'round';
         for (let i = 0; i < rainbow.length; i++) {
@@ -1010,13 +1129,9 @@ const Renderer = {
             ctx.beginPath();
             const offset = i * 2;
             ctx.moveTo(x - 20 + offset * 0.3, y - 68 + offset);
-            ctx.quadraticCurveTo(
-                x - 28 - i * 1.5, y - 56 + offset,
-                x - 26 - i * 0.8, y - 42 + offset * 1.5
-            );
+            ctx.quadraticCurveTo(x - 28 - i * 1.5, y - 56 + offset, x - 26 - i * 0.8, y - 42 + offset * 1.5);
             ctx.stroke();
         }
-        // Second wave of mane strands (further down neck)
         ctx.lineWidth = 2.5;
         for (let i = 0; i < rainbow.length; i++) {
             ctx.strokeStyle = rainbow[i];
@@ -1024,48 +1139,40 @@ const Renderer = {
             ctx.beginPath();
             const offset = i * 2;
             ctx.moveTo(x - 24 - i * 0.5, y - 50 + offset);
-            ctx.quadraticCurveTo(
-                x - 32 - i, y - 40 + offset,
-                x - 28 - i * 0.5, y - 30 + offset * 1.2
-            );
+            ctx.quadraticCurveTo(x - 32 - i, y - 40 + offset, x - 28 - i * 0.5, y - 30 + offset * 1.2);
             ctx.stroke();
         }
         ctx.globalAlpha = 1;
         ctx.lineWidth = 1;
         ctx.lineCap = 'butt';
 
-        // === SPARKLES around the unicorn ===
+        // === SPARKLES with glow ===
+        ctx.save();
+        ctx.shadowColor = '#f1c40f';
+        ctx.shadowBlur = 4;
         ctx.fillStyle = '#f1c40f';
         const sparkles = [
             [x - 36, y - 60], [x + 38, y - 30], [x - 6, y - 80],
             [x + 20, y - 32], [x - 40, y - 34], [x + 46, y - 18],
         ];
         for (const [sx, sy] of sparkles) {
-            // 4-pointed star
             ctx.beginPath();
-            ctx.moveTo(sx, sy - 3);
-            ctx.lineTo(sx + 1, sy - 1);
-            ctx.lineTo(sx + 3, sy);
-            ctx.lineTo(sx + 1, sy + 1);
-            ctx.lineTo(sx, sy + 3);
-            ctx.lineTo(sx - 1, sy + 1);
-            ctx.lineTo(sx - 3, sy);
-            ctx.lineTo(sx - 1, sy - 1);
-            ctx.closePath();
-            ctx.fill();
+            ctx.moveTo(sx, sy - 3); ctx.lineTo(sx + 1, sy - 1);
+            ctx.lineTo(sx + 3, sy); ctx.lineTo(sx + 1, sy + 1);
+            ctx.lineTo(sx, sy + 3); ctx.lineTo(sx - 1, sy + 1);
+            ctx.lineTo(sx - 3, sy); ctx.lineTo(sx - 1, sy - 1);
+            ctx.closePath(); ctx.fill();
         }
+        ctx.restore();
     },
 
     // --- GENERIC fallback ---
     _drawGeneric(ctx, x, y, c) {
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        ctx.beginPath(); ctx.ellipse(x, y + 22, 42, 8, 0, 0, Math.PI * 2); ctx.fill();
+        this._drawShadow(ctx, x, y + 22, 44, 10);
+        this._draw3DTire(ctx, x - 44, y - 8, 11, 28);
+        this._draw3DTire(ctx, x + 33, y - 8, 11, 28);
 
-        ctx.fillStyle = '#222';
-        ctx.fillRect(x - 44, y - 8, 11, 28);
-        ctx.fillRect(x + 33, y - 8, 11, 28);
-
-        ctx.fillStyle = c.bodyColor;
+        ctx.fillStyle = this._bodyGrad(ctx, x, y - 44, y + 18, c.bodyColor);
         ctx.beginPath();
         ctx.moveTo(x - 36, y + 18);
         ctx.lineTo(x - 38, y - 8);
@@ -1078,7 +1185,11 @@ const Renderer = {
         ctx.closePath();
         ctx.fill();
 
-        ctx.fillStyle = '#1a2a3a';
+        this._sideShade(ctx, x, y, -36, -38, -28, -16, 18, -8, -36);
+        this._sideShade(ctx, x, y, 36, 38, 28, 16, 18, -8, -36);
+        this._specHighlight(ctx, x, y - 18, 24, 5);
+
+        ctx.fillStyle = this._windowGrad(ctx, x, y - 40, y - 28);
         ctx.beginPath();
         ctx.moveTo(x - 14, y - 40);
         ctx.lineTo(x + 14, y - 40);
@@ -1087,15 +1198,158 @@ const Renderer = {
         ctx.closePath();
         ctx.fill();
 
-        ctx.fillStyle = c.stripeColor;
+        const sg = ctx.createLinearGradient(x - 2, y, x + 2, y);
+        sg.addColorStop(0, this._darken(c.stripeColor, 0.15));
+        sg.addColorStop(0.5, this._lighten(c.stripeColor, 0.2));
+        sg.addColorStop(1, this._darken(c.stripeColor, 0.15));
+        ctx.fillStyle = sg;
         ctx.fillRect(x - 2, y - 44, 4, 60);
 
-        ctx.fillStyle = '#e74c3c';
-        ctx.fillRect(x - 32, y + 4, 12, 6);
-        ctx.fillRect(x + 20, y + 4, 12, 6);
+        this._glowTaillight(ctx, x - 32, y + 4, 12, 6);
+        this._glowTaillight(ctx, x + 20, y + 4, 12, 6);
+        this._drawBumper(ctx, x - 30, y + 14, 60, 5);
+    },
 
-        ctx.fillStyle = '#333';
-        ctx.fillRect(x - 30, y + 14, 60, 5);
+    // =====================================================
+    // 3D RENDERING HELPERS
+    // =====================================================
+
+    _parseHex(hex) {
+        return [
+            parseInt(hex.slice(1, 3), 16),
+            parseInt(hex.slice(3, 5), 16),
+            parseInt(hex.slice(5, 7), 16),
+        ];
+    },
+
+    _lighten(hex, amt) {
+        const [r, g, b] = this._parseHex(hex);
+        return `rgb(${Math.min(255, Math.round(r + (255 - r) * amt))},${Math.min(255, Math.round(g + (255 - g) * amt))},${Math.min(255, Math.round(b + (255 - b) * amt))})`;
+    },
+
+    _darken(hex, amt) {
+        const [r, g, b] = this._parseHex(hex);
+        return `rgb(${Math.round(r * (1 - amt))},${Math.round(g * (1 - amt))},${Math.round(b * (1 - amt))})`;
+    },
+
+    _bodyGrad(ctx, x, y1, y2, color) {
+        const g = ctx.createLinearGradient(x, y1, x, y2);
+        g.addColorStop(0, this._lighten(color, 0.3));
+        g.addColorStop(0.3, this._lighten(color, 0.1));
+        g.addColorStop(0.6, color);
+        g.addColorStop(1, this._darken(color, 0.35));
+        return g;
+    },
+
+    _windowGrad(ctx, x, y1, y2) {
+        const g = ctx.createLinearGradient(x, y1, x, y2);
+        g.addColorStop(0, '#0d1525');
+        g.addColorStop(0.3, '#1a3555');
+        g.addColorStop(0.65, '#2a5575');
+        g.addColorStop(1, '#1a2a3a');
+        return g;
+    },
+
+    _windowReflection(ctx, x1, y1, x2, y2) {
+        ctx.strokeStyle = 'rgba(150,200,255,0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+    },
+
+    _drawShadow(ctx, x, y, rx, ry) {
+        const g = ctx.createRadialGradient(x, y, 0, x, y, rx);
+        g.addColorStop(0, 'rgba(0,0,0,0.4)');
+        g.addColorStop(0.6, 'rgba(0,0,0,0.15)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+    },
+
+    _draw3DTire(ctx, x, y, w, h) {
+        const g = ctx.createLinearGradient(x, y, x + w, y);
+        g.addColorStop(0, '#080808');
+        g.addColorStop(0.2, '#282828');
+        g.addColorStop(0.5, '#333');
+        g.addColorStop(0.8, '#282828');
+        g.addColorStop(1, '#080808');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+        // Rim highlight
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+        // Sidewall sheen
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.fillRect(x + w * 0.3, y + 2, w * 0.4, h - 4);
+    },
+
+    _specHighlight(ctx, x, y, w, h) {
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        ctx.beginPath();
+        ctx.ellipse(x, y, w, h, 0, 0, Math.PI * 2);
+        ctx.fill();
+    },
+
+    _sideShade(ctx, x, y, bot, mid1, shoulder, roof, botY, midY, shoulderY) {
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        const sign = Math.sign(bot);
+        ctx.beginPath();
+        ctx.moveTo(x + bot, y + botY);
+        ctx.lineTo(x + mid1, y + midY);
+        ctx.lineTo(x + shoulder, y + shoulderY);
+        ctx.lineTo(x + shoulder + sign * (-4), y + shoulderY + 2);
+        ctx.lineTo(x + mid1 + sign * (-4), y + midY + 2);
+        ctx.lineTo(x + bot + sign * (-4), y + botY);
+        ctx.closePath();
+        ctx.fill();
+    },
+
+    _glowTaillight(ctx, x, y, w, h) {
+        ctx.save();
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#ee3333';
+        ctx.fillRect(x, y, w, h);
+        ctx.restore();
+        // Bright center
+        ctx.fillStyle = 'rgba(255,180,180,0.5)';
+        ctx.fillRect(x + 2, y + 1, w - 4, h - 2);
+    },
+
+    _glowTaillightRound(ctx, x, y, r) {
+        ctx.save();
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#ee3333';
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+        ctx.fillStyle = '#ff8888';
+        ctx.beginPath(); ctx.arc(x, y, r * 0.5, 0, Math.PI * 2); ctx.fill();
+    },
+
+    _drawBumper(ctx, x, y, w, h) {
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, '#555');
+        g.addColorStop(0.5, '#333');
+        g.addColorStop(1, '#1a1a1a');
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, w, h);
+    },
+
+    _drawExhaust(ctx, x, y, r) {
+        ctx.fillStyle = '#888';
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, '#111');
+        g.addColorStop(0.6, '#222');
+        g.addColorStop(1, '#666');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x, y, r * 0.7, 0, Math.PI * 2); ctx.fill();
     },
 
     // === Color utilities ===
