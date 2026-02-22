@@ -231,8 +231,8 @@ const Renderer = {
         ctx.save();
         ctx.translate(centerX, carY + car.bounce);
 
-        // Slight lean when steering
-        const lean = car.tilt * 0.05;
+        // Visible lean when steering — skew the car body
+        const lean = car.tilt * 0.15;
         ctx.transform(1, 0, lean, 1, 0, 0);
 
         this.drawCarSprite(ctx, 0, 0, car);

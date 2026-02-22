@@ -6,6 +6,7 @@ const Garage = {
     selectedCar: 0,
     selectedTrack: 0,
     inputCooldown: 0,       // Prevent super-fast scrolling
+    bumpers: true,          // Bumpers mode default ON
 
     init() {
         this.state = 'car';
@@ -40,6 +41,10 @@ const Garage = {
                 this.selectedTrack = (this.selectedTrack + 1) % Tracks.length;
                 this.inputCooldown = 0.2;
             }
+            if (input.isPressed('b') || input.isPressed('B')) {
+                this.bumpers = !this.bumpers;
+                this.inputCooldown = 0.3;
+            }
             if (input.escape) {
                 this.state = 'car';
                 this.inputCooldown = 0.3;
@@ -49,6 +54,7 @@ const Garage = {
                 return {
                     car: Cars[this.selectedCar],
                     track: Tracks[this.selectedTrack],
+                    bumpers: this.bumpers,
                 };
             }
         }
@@ -209,17 +215,24 @@ const Garage = {
         ctx.fillStyle = '#888';
         ctx.fillText(`${track.laps} laps  |  ${track.type}`, w / 2, h / 2 + 130);
 
-        // Best time
-        const bestKey = `best_${Cars[this.selectedCar].id}_${track.id}`;
-        const bestTime = localStorage.getItem(bestKey);
-        if (bestTime) {
-            const t = parseFloat(bestTime);
-            const mins = Math.floor(t / 60);
-            const secs = Math.floor(t % 60);
-            const ms = Math.floor((t % 1) * 100);
-            ctx.font = 'bold 16px monospace';
+        // Leaderboard — top 3 times for this track
+        const entries = Leaderboard.getForTrack(track.id);
+        if (entries.length > 0) {
+            ctx.font = 'bold 14px monospace';
             ctx.fillStyle = '#f1c40f';
-            ctx.fillText(`BEST: ${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`, w / 2, h / 2 + 155);
+            ctx.fillText('LEADERBOARD', w / 2, h / 2 + 150);
+            ctx.font = '13px monospace';
+            const top = entries.slice(0, 3);
+            for (let i = 0; i < top.length; i++) {
+                const e = top[i];
+                const medal = i === 0 ? '1st' : i === 1 ? '2nd' : '3rd';
+                const bumperTag = e.bumpers ? '' : ' *';
+                ctx.fillStyle = i === 0 ? '#f1c40f' : '#aaa';
+                ctx.fillText(
+                    `${medal}  ${Leaderboard.formatTime(e.time)}  ${e.name}  (${e.carName})${bumperTag}`,
+                    w / 2, h / 2 + 170 + i * 18
+                );
+            }
         }
 
         // Navigation arrows
@@ -228,6 +241,11 @@ const Garage = {
         const arrowBounce = Math.sin(time * 4) * 5;
         ctx.fillText('<', 80 + arrowBounce, h / 2);
         ctx.fillText('>', w - 80 - arrowBounce, h / 2);
+
+        // Bumpers toggle
+        ctx.font = 'bold 16px monospace';
+        ctx.fillStyle = this.bumpers ? '#2ecc71' : '#666';
+        ctx.fillText(`BUMPERS: ${this.bumpers ? 'ON' : 'OFF'}   [B to toggle]`, w / 2, h - 55);
 
         // Instructions
         ctx.font = '16px monospace';

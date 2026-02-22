@@ -40,12 +40,16 @@ const HUD = {
             this.drawTrackName(ctx, w / 2, h / 2 - 100, gameState.trackName, alpha);
         }
 
-        // === CAR NAME (bottom left) ===
+        // === CAR NAME + BUMPERS (bottom left) ===
         if (car.stats) {
             ctx.font = 'bold 14px monospace';
             ctx.fillStyle = '#fff';
             ctx.textAlign = 'left';
             ctx.fillText(car.stats.name, 20, h - 20);
+            if (car.bumpers) {
+                ctx.fillStyle = '#2ecc71';
+                ctx.fillText('BUMPERS', 20, h - 40);
+            }
         }
     },
 
@@ -149,7 +153,7 @@ const HUD = {
         // Instructions
         ctx.font = '18px monospace';
         ctx.fillStyle = '#aaa';
-        ctx.fillText('Press ENTER to continue', x, y + 110);
+        ctx.fillText('Saving...', x, y + 110);
     },
 
     drawTrackName(ctx, x, y, name, alpha) {

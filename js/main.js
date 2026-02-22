@@ -88,13 +88,13 @@ const Game = {
     updateGarage(dt) {
         const selection = Garage.update(dt, Input);
         if (selection) {
-            this.startRace(selection.car, selection.track);
+            this.startRace(selection.car, selection.track, selection.bumpers);
         }
         Garage.draw(this.ctx, this.canvas, this.time);
     },
 
     // === START RACE ===
-    startRace(carDef, trackDef) {
+    startRace(carDef, trackDef, bumpers) {
         this.selectedCar = carDef;
         this.selectedTrack = trackDef;
 
@@ -103,6 +103,7 @@ const Game = {
 
         // Initialize the car with selected stats
         Car.init(carDef, trackDef.type);
+        Car.bumpers = bumpers;
 
         // Reset race state
         this.currentLap = 1;
@@ -186,6 +187,8 @@ const Game = {
     finishRace() {
         this.state = 'finished';
         this.totalTime = this.raceTime;
+        this.showingSaveUI = false;
+        this.saveUIShown = false;
 
         // Check for best time
         const key = `best_${this.selectedCar.id}_${this.selectedTrack.id}`;
@@ -204,11 +207,19 @@ const Game = {
         Renderer.drawCar(this.ctx, Car, this.canvas.width, this.canvas.height, this.time);
         HUD.draw(this.ctx, Car, this, this.canvas);
 
-        // Wait for ENTER to go back to garage
-        if (Input.enter) {
-            this.state = 'garage';
-            Garage.init();
-            Input.keys = {}; // Clear input to prevent instant selection
+        // Show save UI after a brief pause
+        if (!this.saveUIShown && !this.showingSaveUI) {
+            this.showingSaveUI = true;
+            this.saveUIShown = true;
+            // Small delay so you see the finish screen first
+            setTimeout(() => {
+                Leaderboard.showSaveUI(this, () => {
+                    this.showingSaveUI = false;
+                    this.state = 'garage';
+                    Garage.init();
+                    Input.keys = {};
+                });
+            }, 1500);
         }
     },
 };

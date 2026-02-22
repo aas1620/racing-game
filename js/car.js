@@ -28,6 +28,7 @@ const Car = {
     spinAngle: 0,
     explosionTriggered: false,
     invincibleTimer: 0,  // Brief invincibility after crash recovery
+    bumpers: true,       // Bumpers mode — can't go off-road
 
     // Stats from selected car
     stats: null,
@@ -122,16 +123,19 @@ const Car = {
         if (input.right) this.steering = 1;
 
         // Steering works when moving (inverted in reverse)
+        // Use a minimum steering factor so the car responds even at low speed
         const absSpeed = Math.abs(this.speed);
         const speedPercent = absSpeed / this.maxSpeed;
-        if (absSpeed > 0) {
+        const steerFactor = Math.max(0.35, speedPercent);
+        if (absSpeed > 10) {
             const steerDir = this.speed >= 0 ? 1 : -1;
-            this.x += this.steering * steerDir * this.steerSpeed * speedPercent * dt;
+            this.x += this.steering * steerDir * this.steerSpeed * steerFactor * dt;
         }
 
-        // Visual tilt (smooth)
-        const targetTilt = this.steering * speedPercent;
-        this.tilt += (targetTilt - this.tilt) * 10 * dt;
+        // Visual tilt — always visible when steering, stronger at speed
+        const tiltStrength = Math.max(0.5, speedPercent);
+        const targetTilt = this.steering * tiltStrength;
+        this.tilt += (targetTilt - this.tilt) * 12 * dt;
 
         // Get current road segment for curves (only when moving forward)
         if (this.speed > 0) {
@@ -139,6 +143,16 @@ const Car = {
             if (segment) {
                 // Centrifugal force — curves push you outward
                 this.x += segment.curve * this.centrifugal * speedPercent * speedPercent * dt * 60;
+            }
+        }
+
+        // Bumpers mode — keep the car on the track
+        if (this.bumpers) {
+            if (Math.abs(this.x) > 1.0) {
+                this.x = Math.sign(this.x) * 1.0;
+                // Bounce off the wall
+                this.speed *= 0.95;
+                this.bounceSpeed += (Math.random() - 0.5) * 30;
             }
         }
 
