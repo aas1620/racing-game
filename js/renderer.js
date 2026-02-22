@@ -241,43 +241,622 @@ const Renderer = {
 
     drawCarSprite(ctx, x, y, car) {
         const colors = car.stats || {
+            id: 'generic',
             bodyColor: '#e74c3c',
             accentColor: '#c0392b',
             stripeColor: '#f1c40f',
             wheelColor: '#333',
         };
+        const id = colors.id;
 
-        const bColor = colors.bodyColor;
-        const aColor = colors.accentColor;
-        const sColor = colors.stripeColor;
-        const wColor = colors.wheelColor;
+        // Dispatch to per-car draw function
+        switch (id) {
+            case 'twin_mill':    this.drawTwinMill(ctx, x, y, colors, car.tilt || 0); break;
+            case 'bone_shaker':  this.drawBoneShaker(ctx, x, y, colors, car.tilt || 0); break;
+            case 'porsche_911':  this.drawPorsche911(ctx, x, y, colors, car.tilt || 0); break;
+            case 'porsche_dakar':this.drawPorscheDakar(ctx, x, y, colors, car.tilt || 0); break;
+            case 'deora_ii':     this.drawDeoraII(ctx, x, y, colors, car.tilt || 0); break;
+            case 'night_shifter':this.drawNightShifter(ctx, x, y, colors, car.tilt || 0); break;
+            default:             this.drawGenericCar(ctx, x, y, colors, car.tilt || 0); break;
+        }
+    },
 
-        // Shadow
+    // === Shared helpers ===
+    _shadow(ctx, x, y, w) {
         ctx.fillStyle = 'rgba(0,0,0,0.3)';
         ctx.beginPath();
-        ctx.ellipse(x, y + 25, 45, 10, 0, 0, Math.PI * 2);
+        ctx.ellipse(x, y + 25, w, 10, 0, 0, Math.PI * 2);
         ctx.fill();
+    },
 
-        // Wheels (back)
+    _wheels(ctx, x, y, wColor, tilt, backL, backR, frontL, frontR) {
+        // Back wheels
         ctx.fillStyle = wColor;
-        ctx.fillRect(x - 48, y - 5, 14, 25);
-        ctx.fillRect(x + 34, y - 5, 14, 25);
+        ctx.fillRect(backL[0] + x, backL[1] + y, 14, 24);
+        ctx.fillRect(backR[0] + x, backR[1] + y, 14, 24);
+        // Front wheels (steerable)
+        const steer = tilt * 3;
+        ctx.save();
+        ctx.translate(frontL[0] + x + 7, frontL[1] + y + 6);
+        ctx.rotate(steer * 0.1);
+        ctx.fillRect(-7, -5, 14, 12);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(frontR[0] + x + 7, frontR[1] + y + 6);
+        ctx.rotate(steer * 0.1);
+        ctx.fillRect(-7, -5, 14, 12);
+        ctx.restore();
+    },
 
-        // Main body
-        ctx.fillStyle = bColor;
+    _headlights(ctx, x, y, positions) {
+        ctx.fillStyle = '#f1c40f';
+        for (const p of positions) {
+            ctx.fillRect(x + p[0], y + p[1], p[2] || 7, p[3] || 5);
+        }
+    },
+
+    _taillights(ctx, x, y, color, positions) {
+        ctx.fillStyle = color;
+        for (const p of positions) {
+            ctx.fillRect(x + p[0], y + p[1], p[2] || 7, p[3] || 4);
+        }
+    },
+
+    // =========================================
+    // TWIN MILL — Long hood, twin supercharger bumps, muscle car stance
+    // =========================================
+    drawTwinMill(ctx, x, y, c, tilt) {
+        this._shadow(ctx, x, y, 48);
+
+        // Back wheels (wide stance)
+        this._wheels(ctx, x, y, c.wheelColor, tilt,
+            [-50, -5], [36, -5], [-44, 12], [30, 12]);
+
+        // Long body — muscular, wide rear tapering to front
+        ctx.fillStyle = c.bodyColor;
         ctx.beginPath();
-        ctx.moveTo(x - 40, y + 20);   // Bottom left
-        ctx.lineTo(x - 42, y - 10);   // Left side
-        ctx.lineTo(x - 30, y - 35);   // Left windshield
-        ctx.lineTo(x - 15, y - 50);   // Roof left
-        ctx.lineTo(x + 15, y - 50);   // Roof right
-        ctx.lineTo(x + 30, y - 35);   // Right windshield
-        ctx.lineTo(x + 42, y - 10);   // Right side
-        ctx.lineTo(x + 40, y + 20);   // Bottom right
+        ctx.moveTo(x - 44, y + 20);   // rear left
+        ctx.lineTo(x - 46, y - 5);    // rear fender
+        ctx.lineTo(x - 42, y - 22);   // rear deck
+        ctx.lineTo(x - 25, y - 38);   // rear window
+        ctx.lineTo(x - 12, y - 46);   // roof left
+        ctx.lineTo(x + 12, y - 46);   // roof right
+        ctx.lineTo(x + 25, y - 38);   // front window
+        ctx.lineTo(x + 38, y - 18);   // hood start
+        ctx.lineTo(x + 44, y - 10);   // hood
+        ctx.lineTo(x + 46, y + 5);    // nose
+        ctx.lineTo(x + 42, y + 20);   // front bumper
         ctx.closePath();
         ctx.fill();
 
+        // Twin supercharger bumps on hood
+        ctx.fillStyle = c.accentColor;
+        // Left engine bump
+        ctx.beginPath();
+        ctx.moveTo(x - 12, y - 18);
+        ctx.lineTo(x - 8, y - 32);
+        ctx.lineTo(x - 3, y - 32);
+        ctx.lineTo(x + 1, y - 18);
+        ctx.closePath();
+        ctx.fill();
+        // Right engine bump
+        ctx.beginPath();
+        ctx.moveTo(x + 1, y - 18);
+        ctx.lineTo(x + 5, y - 32);
+        ctx.lineTo(x + 10, y - 32);
+        ctx.lineTo(x + 14, y - 18);
+        ctx.closePath();
+        ctx.fill();
+
+        // Engine intake scoops (dark slots on bumps)
+        ctx.fillStyle = '#111';
+        ctx.fillRect(x - 10, y - 30, 6, 3);
+        ctx.fillRect(x + 4, y - 30, 6, 3);
+
         // Windshield
+        ctx.fillStyle = '#1a2a3a';
+        ctx.beginPath();
+        ctx.moveTo(x - 22, y - 36);
+        ctx.lineTo(x - 10, y - 44);
+        ctx.lineTo(x + 10, y - 44);
+        ctx.lineTo(x + 22, y - 36);
+        ctx.closePath();
+        ctx.fill();
+
+        // Gold center stripe
+        ctx.fillStyle = c.stripeColor;
+        ctx.fillRect(x - 2, y - 46, 4, 66);
+
+        // Front bumper / grille
+        ctx.fillStyle = '#333';
+        ctx.fillRect(x - 30, y + 15, 60, 6);
+        this._headlights(ctx, x, y, [[-34, 14], [28, 14]]);
+
+        // Taillights
+        this._taillights(ctx, x, y, '#e74c3c', [[-40, -8, 6, 6], [34, -8, 6, 6]]);
+    },
+
+    // =========================================
+    // BONE SHAKER — Hot rod with exposed engine, skull grille, fat rear tires
+    // =========================================
+    drawBoneShaker(ctx, x, y, c, tilt) {
+        this._shadow(ctx, x, y, 46);
+
+        // Fat rear wheels, smaller fronts
+        ctx.fillStyle = c.wheelColor;
+        ctx.fillRect(x - 50, y - 8, 16, 28); // rear L (fat)
+        ctx.fillRect(x + 34, y - 8, 16, 28); // rear R (fat)
+        // Front wheels
+        const steer = tilt * 3;
+        ctx.save();
+        ctx.translate(x - 38, y + 16);
+        ctx.rotate(steer * 0.1);
+        ctx.fillRect(-5, -4, 10, 10);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(x + 38, y + 16);
+        ctx.rotate(steer * 0.1);
+        ctx.fillRect(-5, -4, 10, 10);
+        ctx.restore();
+
+        // Body — chopped hot rod profile, short cab set back
+        ctx.fillStyle = c.bodyColor;
+        ctx.beginPath();
+        ctx.moveTo(x - 42, y + 20);
+        ctx.lineTo(x - 44, y - 5);    // rear fender (tall)
+        ctx.lineTo(x - 38, y - 20);   // rear deck
+        ctx.lineTo(x - 20, y - 36);   // chopped roof rear
+        ctx.lineTo(x - 8, y - 40);    // roof top L
+        ctx.lineTo(x + 8, y - 40);    // roof top R
+        ctx.lineTo(x + 16, y - 32);   // front of cab
+        ctx.lineTo(x + 22, y - 15);   // hood drops low
+        ctx.lineTo(x + 38, y + 2);    // long low nose
+        ctx.lineTo(x + 36, y + 20);
+        ctx.closePath();
+        ctx.fill();
+
+        // Exposed engine block sticking up from hood
+        ctx.fillStyle = '#777';
+        ctx.fillRect(x + 8, y - 28, 16, 14);
+        // Intake manifold pipes
+        ctx.fillStyle = c.accentColor;
+        ctx.fillRect(x + 9, y - 32, 4, 6);
+        ctx.fillRect(x + 15, y - 32, 4, 6);
+        ctx.fillRect(x + 21, y - 30, 4, 6);
+        // Engine detail
+        ctx.fillStyle = '#555';
+        ctx.fillRect(x + 10, y - 20, 12, 3);
+
+        // Skull grille (simplified — circle eyes, nose, grin)
+        ctx.fillStyle = c.accentColor;
+        // Skull face on front
+        ctx.beginPath();
+        ctx.arc(x + 32, y + 6, 8, 0, Math.PI * 2);
+        ctx.fill();
+        // Eye sockets
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        ctx.arc(x + 29, y + 4, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + 35, y + 4, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        // Nose
+        ctx.fillRect(x + 31, y + 7, 2, 3);
+
+        // Windshield (chopped — short)
+        ctx.fillStyle = '#1a2a3a';
+        ctx.beginPath();
+        ctx.moveTo(x - 16, y - 33);
+        ctx.lineTo(x - 6, y - 38);
+        ctx.lineTo(x + 6, y - 38);
+        ctx.lineTo(x + 14, y - 30);
+        ctx.closePath();
+        ctx.fill();
+
+        // Flame stripe on side
+        ctx.fillStyle = c.stripeColor;
+        ctx.beginPath();
+        ctx.moveTo(x - 38, y + 5);
+        ctx.lineTo(x - 10, y - 5);
+        ctx.lineTo(x + 5, y + 0);
+        ctx.lineTo(x - 5, y + 5);
+        ctx.lineTo(x + 10, y + 2);
+        ctx.lineTo(x - 10, y + 10);
+        ctx.lineTo(x - 38, y + 12);
+        ctx.closePath();
+        ctx.fill();
+
+        this._headlights(ctx, x, y, [[28, 14, 5, 4], [36, 14, 5, 4]]);
+        this._taillights(ctx, x, y, '#e74c3c', [[-42, -2, 5, 5], [38, -2, 5, 5]]);
+    },
+
+    // =========================================
+    // PORSCHE 911 TURBO — Sleek slope-back, wide rear haunches, whale tail spoiler
+    // =========================================
+    drawPorsche911(ctx, x, y, c, tilt) {
+        this._shadow(ctx, x, y, 44);
+
+        this._wheels(ctx, x, y, c.wheelColor, tilt,
+            [-46, -3], [32, -3], [-40, 12], [28, 12]);
+
+        // Sleek 911 body — iconic sloping rear roofline
+        ctx.fillStyle = c.bodyColor;
+        ctx.beginPath();
+        ctx.moveTo(x - 40, y + 20);
+        ctx.lineTo(x - 42, y - 2);     // rear fender
+        ctx.lineTo(x - 40, y - 20);    // rear haunch (wide)
+        ctx.lineTo(x - 32, y - 36);    // sloping rear window start
+        ctx.lineTo(x - 18, y - 48);    // roof peak (far back — 911 signature)
+        ctx.lineTo(x + 5, y - 50);     // roof
+        ctx.lineTo(x + 22, y - 42);    // windshield top
+        ctx.lineTo(x + 36, y - 22);    // long sloping hood
+        ctx.lineTo(x + 42, y - 8);     // front fender
+        ctx.lineTo(x + 40, y + 8);     // nose
+        ctx.lineTo(x + 38, y + 20);    // front bumper
+        ctx.closePath();
+        ctx.fill();
+
+        // Whale tail spoiler
+        ctx.fillStyle = c.bodyColor;
+        ctx.fillRect(x - 42, y - 24, 8, 3);
+        ctx.fillStyle = c.stripeColor;
+        ctx.beginPath();
+        ctx.moveTo(x - 48, y - 26);
+        ctx.lineTo(x - 46, y - 30);
+        ctx.lineTo(x - 34, y - 30);
+        ctx.lineTo(x - 32, y - 26);
+        ctx.closePath();
+        ctx.fill();
+
+        // Rear window (slopes down — 911 signature)
+        ctx.fillStyle = '#1a2a3a';
+        ctx.beginPath();
+        ctx.moveTo(x - 30, y - 34);
+        ctx.lineTo(x - 16, y - 46);
+        ctx.lineTo(x + 3, y - 48);
+        ctx.lineTo(x + 5, y - 42);
+        ctx.lineTo(x - 18, y - 38);
+        ctx.closePath();
+        ctx.fill();
+
+        // Front windshield
+        ctx.beginPath();
+        ctx.moveTo(x + 8, y - 42);
+        ctx.lineTo(x + 20, y - 40);
+        ctx.lineTo(x + 32, y - 24);
+        ctx.lineTo(x + 12, y - 28);
+        ctx.closePath();
+        ctx.fill();
+
+        // Side accent line
+        ctx.strokeStyle = c.accentColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x - 38, y + 2);
+        ctx.lineTo(x + 38, y + 2);
+        ctx.stroke();
+
+        // Racing number circle
+        ctx.fillStyle = c.stripeColor;
+        ctx.beginPath();
+        ctx.arc(x, y - 10, 10, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Front bumper intake
+        ctx.fillStyle = '#333';
+        ctx.fillRect(x - 25, y + 16, 50, 5);
+
+        this._headlights(ctx, x, y, [[-32, 6, 6, 4], [26, 6, 6, 4]]);
+        // Round 911 taillights
+        ctx.fillStyle = '#e74c3c';
+        ctx.beginPath();
+        ctx.arc(x - 38, y - 6, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + 38, y - 6, 4, 0, Math.PI * 2);
+        ctx.fill();
+    },
+
+    // =========================================
+    // PORSCHE 911 DAKAR — Raised 911, roof rack/lights, chunkier fenders
+    // =========================================
+    drawPorscheDakar(ctx, x, y, c, tilt) {
+        this._shadow(ctx, x, y, 46);
+
+        // Chunkier wheels (rally tires)
+        ctx.fillStyle = c.wheelColor;
+        ctx.fillRect(x - 48, y - 6, 15, 26);
+        ctx.fillRect(x + 33, y - 6, 15, 26);
+        // Tire tread marks
+        ctx.fillStyle = '#666';
+        for (let i = 0; i < 3; i++) {
+            ctx.fillRect(x - 47, y - 2 + i * 7, 13, 2);
+            ctx.fillRect(x + 34, y - 2 + i * 7, 13, 2);
+        }
+        // Front wheels
+        const steer = tilt * 3;
+        ctx.save();
+        ctx.translate(x - 41, y + 16);
+        ctx.rotate(steer * 0.1);
+        ctx.fillRect(-7, -5, 14, 12);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(x + 41, y + 16);
+        ctx.rotate(steer * 0.1);
+        ctx.fillRect(-7, -5, 14, 12);
+        ctx.restore();
+
+        // Raised 911 body (2px higher than standard 911)
+        ctx.fillStyle = c.bodyColor;
+        ctx.beginPath();
+        ctx.moveTo(x - 42, y + 18);
+        ctx.lineTo(x - 44, y - 6);
+        ctx.lineTo(x - 42, y - 24);
+        ctx.lineTo(x - 32, y - 40);    // rear slope
+        ctx.lineTo(x - 18, y - 52);    // roof
+        ctx.lineTo(x + 5, y - 54);
+        ctx.lineTo(x + 22, y - 46);
+        ctx.lineTo(x + 36, y - 26);
+        ctx.lineTo(x + 44, y - 10);
+        ctx.lineTo(x + 42, y + 6);
+        ctx.lineTo(x + 40, y + 18);
+        ctx.closePath();
+        ctx.fill();
+
+        // Fender flares (wider than body)
+        ctx.fillStyle = c.accentColor;
+        // Rear flares
+        ctx.beginPath();
+        ctx.moveTo(x - 46, y + 18);
+        ctx.lineTo(x - 48, y - 2);
+        ctx.lineTo(x - 44, y - 6);
+        ctx.lineTo(x - 42, y + 18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x + 42, y + 18);
+        ctx.lineTo(x + 44, y - 6);
+        ctx.lineTo(x + 48, y - 2);
+        ctx.lineTo(x + 46, y + 18);
+        ctx.closePath();
+        ctx.fill();
+
+        // Roof rack
+        ctx.fillStyle = '#555';
+        ctx.fillRect(x - 16, y - 56, 20, 3);
+        ctx.fillRect(x - 14, y - 58, 2, 4);
+        ctx.fillRect(x + 2, y - 58, 2, 4);
+
+        // Roof-mounted rally lights
+        ctx.fillStyle = '#f1c40f';
+        ctx.beginPath();
+        ctx.arc(x - 8, y - 57, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + 0, y - 57, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + 8, y - 57, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Windshield
+        ctx.fillStyle = '#1a2a3a';
+        ctx.beginPath();
+        ctx.moveTo(x - 28, y - 38);
+        ctx.lineTo(x - 16, y - 50);
+        ctx.lineTo(x + 3, y - 52);
+        ctx.lineTo(x + 18, y - 44);
+        ctx.lineTo(x + 30, y - 28);
+        ctx.lineTo(x + 8, y - 32);
+        ctx.closePath();
+        ctx.fill();
+
+        // Number plate
+        ctx.fillStyle = c.stripeColor;
+        ctx.fillRect(x - 8, y - 15, 16, 12);
+        ctx.fillStyle = c.accentColor;
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('53', x, y - 6);
+
+        // Skid plate underneath
+        ctx.fillStyle = '#888';
+        ctx.fillRect(x - 25, y + 18, 50, 3);
+
+        this._headlights(ctx, x, y, [[-34, 4, 6, 4], [28, 4, 6, 4]]);
+        this._taillights(ctx, x, y, '#e74c3c', [[-40, -8, 5, 5], [36, -8, 5, 5]]);
+    },
+
+    // =========================================
+    // DEORA II — Wedge-shaped surf wagon, surfboard on back, rounded nose
+    // =========================================
+    drawDeoraII(ctx, x, y, c, tilt) {
+        this._shadow(ctx, x, y, 44);
+
+        this._wheels(ctx, x, y, c.wheelColor, tilt,
+            [-46, -3], [32, -3], [-40, 12], [28, 12]);
+
+        // Wedge-shaped body — tall rear sloping to low nose
+        ctx.fillStyle = c.bodyColor;
+        ctx.beginPath();
+        ctx.moveTo(x - 40, y + 20);
+        ctx.lineTo(x - 42, y - 8);     // rear
+        ctx.lineTo(x - 38, y - 30);    // tall rear
+        ctx.lineTo(x - 30, y - 48);    // roofline (tall!)
+        ctx.lineTo(x - 10, y - 52);    // roof peak
+        ctx.lineTo(x + 10, y - 48);    // roof slopes forward
+        ctx.lineTo(x + 28, y - 30);    // windshield slopes way down
+        ctx.lineTo(x + 40, y - 8);     // long low nose
+        ctx.lineTo(x + 42, y + 10);    // very low front
+        ctx.lineTo(x + 38, y + 20);
+        ctx.closePath();
+        ctx.fill();
+
+        // Big wrap-around windshield (Deora II signature)
+        ctx.fillStyle = '#2a5a7a';
+        ctx.beginPath();
+        ctx.moveTo(x - 26, y - 44);
+        ctx.lineTo(x - 8, y - 50);
+        ctx.lineTo(x + 8, y - 46);
+        ctx.lineTo(x + 26, y - 28);
+        ctx.lineTo(x + 36, y - 12);
+        ctx.lineTo(x + 30, y - 8);
+        ctx.lineTo(x + 16, y - 22);
+        ctx.lineTo(x - 4, y - 36);
+        ctx.lineTo(x - 20, y - 38);
+        ctx.closePath();
+        ctx.fill();
+
+        // Surfboard sticking out the back!
+        ctx.fillStyle = c.accentColor;
+        ctx.beginPath();
+        ctx.moveTo(x - 32, y - 50);
+        ctx.lineTo(x - 30, y - 68);    // surfboard tip
+        ctx.lineTo(x - 26, y - 50);
+        ctx.closePath();
+        ctx.fill();
+        // Board stripe
+        ctx.fillStyle = c.stripeColor;
+        ctx.fillRect(x - 30, y - 62, 2, 12);
+
+        // Side accent swoosh
+        ctx.fillStyle = c.accentColor;
+        ctx.beginPath();
+        ctx.moveTo(x - 36, y + 5);
+        ctx.quadraticCurveTo(x, y - 10, x + 36, y + 5);
+        ctx.lineTo(x + 36, y + 10);
+        ctx.quadraticCurveTo(x, y - 4, x - 36, y + 10);
+        ctx.closePath();
+        ctx.fill();
+
+        // Rounded nose detail
+        ctx.fillStyle = c.stripeColor;
+        ctx.beginPath();
+        ctx.arc(x + 38, y + 4, 8, -0.5, 0.5);
+        ctx.fill();
+
+        this._headlights(ctx, x, y, [[30, 8, 5, 4], [36, 4, 5, 4]]);
+        this._taillights(ctx, x, y, '#e74c3c', [[-38, -4, 5, 5], [34, -4, 5, 5]]);
+    },
+
+    // =========================================
+    // NIGHT SHIFTER — Ultra-low angular wedge, aggressive splitter, neon accents
+    // =========================================
+    drawNightShifter(ctx, x, y, c, tilt) {
+        this._shadow(ctx, x, y, 46);
+
+        this._wheels(ctx, x, y, c.wheelColor, tilt,
+            [-48, -2], [34, -2], [-42, 12], [30, 12]);
+
+        // Ultra-low angular body — like a stealth fighter
+        ctx.fillStyle = c.bodyColor;
+        ctx.beginPath();
+        ctx.moveTo(x - 42, y + 20);
+        ctx.lineTo(x - 46, y + 0);     // rear (wide)
+        ctx.lineTo(x - 44, y - 15);    // rear haunch
+        ctx.lineTo(x - 30, y - 32);    // angular rear
+        ctx.lineTo(x - 14, y - 42);    // low roof
+        ctx.lineTo(x + 10, y - 42);    // roof
+        ctx.lineTo(x + 28, y - 30);    // windshield slope
+        ctx.lineTo(x + 42, y - 8);     // needle nose
+        ctx.lineTo(x + 48, y + 8);     // front splitter
+        ctx.lineTo(x + 44, y + 20);
+        ctx.closePath();
+        ctx.fill();
+
+        // Angular windshield
+        ctx.fillStyle = '#0a0a1a';
+        ctx.beginPath();
+        ctx.moveTo(x - 10, y - 40);
+        ctx.lineTo(x + 8, y - 40);
+        ctx.lineTo(x + 26, y - 28);
+        ctx.lineTo(x + 36, y - 14);
+        ctx.lineTo(x + 20, y - 18);
+        ctx.lineTo(x + 2, y - 30);
+        ctx.closePath();
+        ctx.fill();
+
+        // Neon accent lines (the glow)
+        ctx.strokeStyle = c.stripeColor;
+        ctx.lineWidth = 2;
+        ctx.shadowColor = c.stripeColor;
+        ctx.shadowBlur = 6;
+        // Side stripe
+        ctx.beginPath();
+        ctx.moveTo(x - 42, y + 5);
+        ctx.lineTo(x + 42, y + 5);
+        ctx.stroke();
+        // Hood V-line
+        ctx.beginPath();
+        ctx.moveTo(x + 44, y - 6);
+        ctx.lineTo(x + 10, y - 20);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + 44, y - 6);
+        ctx.lineTo(x + 10, y + 8);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Big rear spoiler (angular)
+        ctx.fillStyle = c.accentColor;
+        ctx.beginPath();
+        ctx.moveTo(x - 50, y - 18);
+        ctx.lineTo(x - 48, y - 24);
+        ctx.lineTo(x - 32, y - 24);
+        ctx.lineTo(x - 30, y - 18);
+        ctx.closePath();
+        ctx.fill();
+        // Spoiler supports
+        ctx.fillStyle = '#333';
+        ctx.fillRect(x - 46, y - 18, 3, 6);
+        ctx.fillRect(x - 34, y - 18, 3, 6);
+
+        // Front splitter
+        ctx.fillStyle = c.accentColor;
+        ctx.fillRect(x - 36, y + 18, 80, 4);
+
+        // Aggressive headlights (angular slits)
+        ctx.fillStyle = c.stripeColor;
+        ctx.beginPath();
+        ctx.moveTo(x - 30, y + 12);
+        ctx.lineTo(x - 20, y + 10);
+        ctx.lineTo(x - 20, y + 15);
+        ctx.lineTo(x - 30, y + 16);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x + 30, y + 12);
+        ctx.lineTo(x + 20, y + 10);
+        ctx.lineTo(x + 20, y + 15);
+        ctx.lineTo(x + 30, y + 16);
+        ctx.closePath();
+        ctx.fill();
+
+        this._taillights(ctx, x, y, c.accentColor, [[-44, -4, 6, 4], [38, -4, 6, 4]]);
+    },
+
+    // =========================================
+    // GENERIC fallback
+    // =========================================
+    drawGenericCar(ctx, x, y, c, tilt) {
+        this._shadow(ctx, x, y, 45);
+        this._wheels(ctx, x, y, c.wheelColor, tilt,
+            [-48, -5], [34, -5], [-41, 12], [30, 12]);
+
+        ctx.fillStyle = c.bodyColor;
+        ctx.beginPath();
+        ctx.moveTo(x - 40, y + 20);
+        ctx.lineTo(x - 42, y - 10);
+        ctx.lineTo(x - 30, y - 35);
+        ctx.lineTo(x - 15, y - 50);
+        ctx.lineTo(x + 15, y - 50);
+        ctx.lineTo(x + 30, y - 35);
+        ctx.lineTo(x + 42, y - 10);
+        ctx.lineTo(x + 40, y + 20);
+        ctx.closePath();
+        ctx.fill();
+
         ctx.fillStyle = '#2c3e50';
         ctx.beginPath();
         ctx.moveTo(x - 25, y - 32);
@@ -287,32 +866,12 @@ const Renderer = {
         ctx.closePath();
         ctx.fill();
 
-        // Racing stripe
-        ctx.fillStyle = sColor;
-        ctx.fillRect(x - 5, y - 50, 10, 70);
+        ctx.fillStyle = c.stripeColor;
+        ctx.fillRect(x - 3, y - 50, 6, 70);
 
-        // Front accent
-        ctx.fillStyle = aColor;
+        ctx.fillStyle = c.accentColor;
         ctx.fillRect(x - 35, y + 12, 70, 8);
-
-        // Headlights
-        ctx.fillStyle = '#f1c40f';
-        ctx.fillRect(x - 35, y + 12, 8, 5);
-        ctx.fillRect(x + 27, y + 12, 8, 5);
-
-        // Wheels (front, drawn on top)
-        ctx.fillStyle = wColor;
-        const steer = car.tilt * 3;
-        ctx.save();
-        ctx.translate(x - 41, y + 12);
-        ctx.rotate(steer * 0.1);
-        ctx.fillRect(-7, -3, 14, 12);
-        ctx.restore();
-        ctx.save();
-        ctx.translate(x + 41, y + 12);
-        ctx.rotate(steer * 0.1);
-        ctx.fillRect(-7, -3, 14, 12);
-        ctx.restore();
+        this._headlights(ctx, x, y, [[-35, 12], [27, 12]]);
     },
 
     // === Color utilities ===
