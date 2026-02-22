@@ -21,8 +21,11 @@ const Car = {
     bounce: 0,           // Vertical bounce amount
     bounceSpeed: 0,
 
+    // Lateral physics
+    lateralVelocity: 0,  // Lateral momentum (drift/slide)
+
     // State
-    steering: 0,         // Current steering input
+    steering: 0,         // Current steering input (smoothed)
     crashed: false,
     crashTimer: 0,
     spinAngle: 0,
@@ -42,6 +45,7 @@ const Car = {
         this.bounce = 0;
         this.bounceSpeed = 0;
         this.steering = 0;
+        this.lateralVelocity = 0;
         this.crashed = false;
         this.crashTimer = 0;
         this.spinAngle = 0;
@@ -58,8 +62,8 @@ const Car = {
 
             this.maxSpeed = 8000 + speedStat * 800;
             this.accel = 4000 + accelStat * 800;
-            this.steerSpeed = 1.5 + handlingStat * 0.25;
-            this.centrifugal = 0.5 - handlingStat * 0.03;
+            this.steerSpeed = 2.0 + handlingStat * 0.3;
+            this.centrifugal = 0.4 - handlingStat * 0.025;
         }
     },
 
@@ -117,41 +121,69 @@ const Car = {
         const maxReverse = this.maxSpeed * 0.3;
         this.speed = Math.max(-maxReverse, Math.min(this.speed, this.maxSpeed));
 
-        // Steering
-        this.steering = 0;
-        if (input.left) this.steering = -1;
-        if (input.right) this.steering = 1;
-
-        // Steering works when moving (inverted in reverse)
-        // Use a minimum steering factor so the car responds even at low speed
+        // Steering — smooth input (steering wheel doesn't snap instantly)
         const absSpeed = Math.abs(this.speed);
         const speedPercent = absSpeed / this.maxSpeed;
-        const steerFactor = Math.max(0.35, speedPercent);
+
+        let targetSteering = 0;
+        if (input.left) targetSteering = -1;
+        if (input.right) targetSteering = 1;
+        // Steering ramps up smoothly, drops off a bit faster (letting go = snap back)
+        const steerRate = targetSteering !== 0 ? 8 : 12;
+        this.steering += (targetSteering - this.steering) * steerRate * dt;
+
+        // Steering force — most effective at moderate speed
+        // Low speed: builds up (need some speed to turn)
+        // High speed: slight understeer (harder to turn at max speed)
+        const steerCurve = speedPercent < 0.25
+            ? 0.3 + speedPercent * 2.8    // 0.3 to 1.0 over 0-25% speed
+            : 1.0 - Math.max(0, speedPercent - 0.7) * 0.6;  // drops from 1.0 to 0.82 above 70%
+        const steerForce = this.steering * this.steerSpeed * steerCurve;
+
+        // Centrifugal force — curves push you outward
+        // Quadratic with speed: going fast through a curve is dangerous
+        let curveForce = 0;
+        const segment = road.getSegment(this.position);
+        if (segment && absSpeed > 0) {
+            curveForce = segment.curve * this.centrifugal * speedPercent * speedPercent * 3.0;
+        }
+
+        // Apply forces to lateral velocity (momentum-based movement)
+        this.lateralVelocity += (steerForce + curveForce) * dt;
+
+        // Lateral grip — dampens sideways momentum (like tire grip on asphalt)
+        // Higher handling = more grip = quicker damping = tighter cornering
+        const handlingStat = this.getEffectiveStat('handling');
+        const gripDamping = 0.88 - (handlingStat / 10) * 0.08; // 0.80 (handling 10) to 0.87 (handling 1)
+        this.lateralVelocity *= Math.pow(gripDamping, dt * 60);
+
+        // Apply lateral velocity to position
         if (absSpeed > 10) {
             const steerDir = this.speed >= 0 ? 1 : -1;
-            this.x += this.steering * steerDir * this.steerSpeed * steerFactor * dt;
+            this.x += this.lateralVelocity * steerDir * dt;
         }
 
-        // Visual tilt — always visible when steering, stronger at speed
-        const tiltStrength = Math.max(0.5, speedPercent);
-        const targetTilt = this.steering * tiltStrength;
-        this.tilt += (targetTilt - this.tilt) * 12 * dt;
-
-        // Get current road segment for curves (only when moving forward)
-        if (this.speed > 0) {
-            const segment = road.getSegment(this.position);
-            if (segment) {
-                // Centrifugal force — curves push you outward
-                this.x += segment.curve * this.centrifugal * speedPercent * speedPercent * dt * 60;
-            }
+        // Cornering speed loss — tires scrub speed in hard turns
+        // This makes you want to brake BEFORE curves and accelerate OUT
+        const totalLateralForce = Math.abs(this.lateralVelocity);
+        if (totalLateralForce > 0.5 && this.speed > 0) {
+            const scrub = Math.min(0.012, (totalLateralForce - 0.5) * 0.004) * speedPercent;
+            this.speed *= (1 - scrub);
         }
+
+        // Visual tilt — based on total lateral force (steering + drift + curve)
+        const totalTilt = this.steering * Math.max(0.5, speedPercent) +
+            this.lateralVelocity * 0.15;  // drift adds to lean
+        const clampedTilt = Math.max(-1.3, Math.min(1.3, totalTilt));
+        this.tilt += (clampedTilt - this.tilt) * 10 * dt;
 
         // Bumpers mode — keep the car on the track
         if (this.bumpers) {
             if (Math.abs(this.x) > 1.0) {
                 this.x = Math.sign(this.x) * 1.0;
-                // Bounce off the wall
-                this.speed *= 0.95;
+                // Bounce off the wall — kill lateral velocity and lose speed
+                this.lateralVelocity *= -0.3; // Bounce back
+                this.speed *= 0.93;
                 this.bounceSpeed += (Math.random() - 0.5) * 30;
             }
         }
@@ -211,6 +243,7 @@ const Car = {
             this.crashed = false;
             this.spinAngle = 0;
             this.explosionTriggered = false;
+            this.lateralVelocity = 0;
             // Respawn on the road with some speed
             if (this.speed < 1000) this.speed = 1000;
             // Make sure car is back within road boundaries
