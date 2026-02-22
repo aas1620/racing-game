@@ -11,8 +11,8 @@ const Cars = [
         handling: 5,
         offRoad: 3,
         // Visual definition — colors for the polygon car drawing
-        bodyColor: '#1a5276',    // Deep blue
-        accentColor: '#e74c3c',  // Red engines
+        bodyColor: '#8ab82e',    // Classic lime green metallic
+        accentColor: '#c0c0c0',  // Chrome engines
         stripeColor: '#f39c12',  // Gold stripe
         wheelColor: '#333',
     },
@@ -50,9 +50,9 @@ const Cars = [
         acceleration: 6,
         handling: 7,
         offRoad: 9,
-        bodyColor: '#f39c12',    // Rally orange
-        accentColor: '#2c3e50',  // Dark accents
-        stripeColor: '#ecf0f1',  // White number plate
+        bodyColor: '#9BCDB5',    // Iconic mint/sage green
+        accentColor: '#1a1a1a',  // Black cladding
+        stripeColor: '#c0c0c0',  // Silver PORSCHE text
         wheelColor: '#555',
     },
     {

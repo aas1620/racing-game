@@ -314,78 +314,150 @@ const Renderer = {
         }
     },
 
-    // --- TWIN MILL: wide muscle car, twin hood scoops ---
+    // --- TWIN MILL: wide low muscle car, MASSIVE twin supercharger scoops ---
     _drawTwinMill(ctx, x, y, c) {
-        this._drawShadow(ctx, x, y + 22, 46, 10);
-        this._draw3DTire(ctx, x - 46, y - 10, 12, 30);
-        this._draw3DTire(ctx, x + 34, y - 10, 12, 30);
+        this._drawShadow(ctx, x, y + 22, 52, 10);
 
-        // Body with gradient
-        ctx.fillStyle = this._bodyGrad(ctx, x, y - 42, y + 18, c.bodyColor);
+        // Wider stance wheels
+        this._drawWheel(ctx, x - 52, y - 10, 14, 30);
+        this._drawWheel(ctx, x + 38, y - 10, 14, 30);
+
+        // Flowing body with bezier curves — wide and low
+        ctx.fillStyle = this._bodyGrad(ctx, x, y - 36, y + 18, c.bodyColor);
         ctx.beginPath();
-        ctx.moveTo(x - 38, y + 18);
-        ctx.lineTo(x - 40, y - 8);
-        ctx.lineTo(x - 36, y - 30);
-        ctx.lineTo(x - 22, y - 42);
-        ctx.lineTo(x + 22, y - 42);
-        ctx.lineTo(x + 36, y - 30);
-        ctx.lineTo(x + 40, y - 8);
-        ctx.lineTo(x + 38, y + 18);
+        ctx.moveTo(x - 44, y + 18);
+        ctx.bezierCurveTo(x - 46, y + 8, x - 48, y - 4, x - 44, y - 14);
+        ctx.bezierCurveTo(x - 40, y - 26, x - 32, y - 34, x - 22, y - 36);
+        ctx.lineTo(x + 22, y - 36);
+        ctx.bezierCurveTo(x + 32, y - 34, x + 40, y - 26, x + 44, y - 14);
+        ctx.bezierCurveTo(x + 48, y - 4, x + 46, y + 8, x + 44, y + 18);
         ctx.closePath();
         ctx.fill();
 
-        // Side edge shading
-        this._sideShade(ctx, x, y, -38, -40, -36, -22, 18, -8, -30);
-        this._sideShade(ctx, x, y, 38, 40, 36, 22, 18, -8, -30);
+        // Side edge shading for volume
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.beginPath();
+        ctx.moveTo(x - 44, y + 18);
+        ctx.bezierCurveTo(x - 46, y + 8, x - 48, y - 4, x - 44, y - 14);
+        ctx.bezierCurveTo(x - 40, y - 22, x - 36, y - 28, x - 30, y - 32);
+        ctx.lineTo(x - 26, y - 30);
+        ctx.bezierCurveTo(x - 34, y - 24, x - 40, y - 16, x - 40, y - 6);
+        ctx.lineTo(x - 40, y + 18);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x + 44, y + 18);
+        ctx.bezierCurveTo(x + 46, y + 8, x + 48, y - 4, x + 44, y - 14);
+        ctx.bezierCurveTo(x + 40, y - 22, x + 36, y - 28, x + 30, y - 32);
+        ctx.lineTo(x + 26, y - 30);
+        ctx.bezierCurveTo(x + 34, y - 24, x + 40, y - 16, x + 40, y - 6);
+        ctx.lineTo(x + 40, y + 18);
+        ctx.closePath();
+        ctx.fill();
+
+        // Specular highlight on body
+        this._specHighlight(ctx, x, y - 14, 30, 5);
 
         // Edge highlight on roof
         ctx.strokeStyle = this._lighten(c.bodyColor, 0.4);
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(x - 22, y - 42);
-        ctx.lineTo(x + 22, y - 42);
+        ctx.moveTo(x - 22, y - 36);
+        ctx.lineTo(x + 22, y - 36);
         ctx.stroke();
 
-        // Specular highlight
-        this._specHighlight(ctx, x, y - 18, 26, 5);
-
-        // Window with reflection
-        ctx.fillStyle = this._windowGrad(ctx, x, y - 38, y - 28);
+        // Window with curved top
+        ctx.fillStyle = this._windowGrad(ctx, x, y - 33, y - 24);
         ctx.beginPath();
-        ctx.moveTo(x - 18, y - 38);
-        ctx.lineTo(x - 14, y - 28);
-        ctx.lineTo(x + 14, y - 28);
-        ctx.lineTo(x + 18, y - 38);
+        ctx.moveTo(x - 18, y - 24);
+        ctx.lineTo(x - 18, y - 30);
+        ctx.bezierCurveTo(x - 14, y - 35, x + 14, y - 35, x + 18, y - 30);
+        ctx.lineTo(x + 18, y - 24);
         ctx.closePath();
         ctx.fill();
-        this._windowReflection(ctx, x - 15, y - 36, x - 5, y - 30);
+        this._windowReflection(ctx, x - 14, y - 32, x - 4, y - 26);
 
-        // Twin engine scoops with gradient
-        ctx.fillStyle = this._bodyGrad(ctx, x, y - 52, y - 40, c.accentColor);
-        ctx.fillRect(x - 14, y - 52, 10, 12);
-        ctx.fillRect(x + 4, y - 52, 10, 12);
+        // === MASSIVE TWIN SUPERCHARGER SCOOPS ===
+        // THE defining feature — these should dominate the silhouette
+        const scoopGrad = ctx.createLinearGradient(x - 18, y - 38, x - 18, y - 62);
+        scoopGrad.addColorStop(0, '#666');
+        scoopGrad.addColorStop(0.25, '#bbb');
+        scoopGrad.addColorStop(0.5, '#ddd');
+        scoopGrad.addColorStop(0.75, '#bbb');
+        scoopGrad.addColorStop(1, '#888');
+        // Left supercharger housing
+        ctx.fillStyle = scoopGrad;
+        ctx.beginPath();
+        ctx.moveTo(x - 26, y - 38);
+        ctx.bezierCurveTo(x - 28, y - 44, x - 28, y - 56, x - 22, y - 62);
+        ctx.bezierCurveTo(x - 18, y - 64, x - 12, y - 64, x - 8, y - 62);
+        ctx.bezierCurveTo(x - 4, y - 56, x - 4, y - 44, x - 6, y - 38);
+        ctx.closePath();
+        ctx.fill();
+        // Right supercharger housing
+        ctx.beginPath();
+        ctx.moveTo(x + 6, y - 38);
+        ctx.bezierCurveTo(x + 4, y - 44, x + 4, y - 56, x + 8, y - 62);
+        ctx.bezierCurveTo(x + 12, y - 64, x + 18, y - 64, x + 22, y - 62);
+        ctx.bezierCurveTo(x + 28, y - 56, x + 28, y - 44, x + 26, y - 38);
+        ctx.closePath();
+        ctx.fill();
+
+        // Dark intake openings on top of each scoop
         ctx.fillStyle = '#111';
-        ctx.fillRect(x - 12, y - 52, 6, 4);
-        ctx.fillRect(x + 6, y - 52, 6, 4);
+        ctx.beginPath();
+        ctx.moveTo(x - 24, y - 60);
+        ctx.bezierCurveTo(x - 22, y - 63, x - 12, y - 63, x - 8, y - 60);
+        ctx.lineTo(x - 10, y - 56);
+        ctx.bezierCurveTo(x - 14, y - 58, x - 20, y - 58, x - 22, y - 56);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x + 8, y - 60);
+        ctx.bezierCurveTo(x + 12, y - 63, x + 22, y - 63, x + 24, y - 60);
+        ctx.lineTo(x + 22, y - 56);
+        ctx.bezierCurveTo(x + 20, y - 58, x + 14, y - 58, x + 10, y - 56);
+        ctx.closePath();
+        ctx.fill();
 
-        // Gold racing stripe with metallic sheen
+        // Chrome highlight arcs on scoops
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x - 24, y - 50);
+        ctx.bezierCurveTo(x - 22, y - 56, x - 12, y - 56, x - 8, y - 50);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + 8, y - 50);
+        ctx.bezierCurveTo(x + 12, y - 56, x + 22, y - 56, x + 24, y - 50);
+        ctx.stroke();
+
+        // Gold racing stripe with metallic sheen (between the scoops)
         const sg = ctx.createLinearGradient(x - 2, y, x + 2, y);
         sg.addColorStop(0, this._darken(c.stripeColor, 0.15));
         sg.addColorStop(0.5, this._lighten(c.stripeColor, 0.25));
         sg.addColorStop(1, this._darken(c.stripeColor, 0.15));
         ctx.fillStyle = sg;
-        ctx.fillRect(x - 2, y - 42, 4, 58);
+        ctx.fillRect(x - 2, y - 36, 4, 52);
+
+        // Panel line across body
+        ctx.strokeStyle = this._darken(c.bodyColor, 0.2);
+        ctx.lineWidth = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x - 42, y + 2);
+        ctx.lineTo(x + 42, y + 2);
+        ctx.stroke();
 
         // Bumper with gradient
-        this._drawBumper(ctx, x - 34, y + 14, 68, 6);
+        this._drawBumper(ctx, x - 40, y + 14, 80, 6);
 
-        // Taillights with glow
-        this._glowTaillight(ctx, x - 27, y + 6, 14, 8);
-        this._glowTaillight(ctx, x + 13, y + 6, 14, 8);
+        // Taillights with glow (wider)
+        this._glowTaillight(ctx, x - 34, y + 6, 18, 8);
+        this._glowTaillight(ctx, x + 16, y + 6, 18, 8);
 
-        // Exhaust pipes
-        this._drawExhaust(ctx, x - 12, y + 18, 4);
-        this._drawExhaust(ctx, x + 12, y + 18, 4);
+        // Dual exhaust pipes
+        this._drawExhaust(ctx, x - 14, y + 18, 5);
+        this._drawExhaust(ctx, x + 14, y + 18, 5);
     },
 
     // --- BONE SHAKER: hot rod, exposed engine, skull ---
@@ -394,17 +466,15 @@ const Renderer = {
         this._draw3DTire(ctx, x - 48, y - 12, 14, 32);
         this._draw3DTire(ctx, x + 34, y - 12, 14, 32);
 
-        // Body with gradient
+        // Body with gradient — organic hot rod curves
         ctx.fillStyle = this._bodyGrad(ctx, x, y - 36, y + 18, c.bodyColor);
         ctx.beginPath();
         ctx.moveTo(x - 34, y + 18);
-        ctx.lineTo(x - 36, y - 8);
-        ctx.lineTo(x - 30, y - 28);
-        ctx.lineTo(x - 18, y - 36);
+        ctx.bezierCurveTo(x - 36, y + 10, x - 38, y - 2, x - 36, y - 8);
+        ctx.bezierCurveTo(x - 34, y - 18, x - 30, y - 28, x - 18, y - 36);
         ctx.lineTo(x + 18, y - 36);
-        ctx.lineTo(x + 30, y - 28);
-        ctx.lineTo(x + 36, y - 8);
-        ctx.lineTo(x + 34, y + 18);
+        ctx.bezierCurveTo(x + 30, y - 28, x + 34, y - 18, x + 36, y - 8);
+        ctx.bezierCurveTo(x + 38, y - 2, x + 36, y + 10, x + 34, y + 18);
         ctx.closePath();
         ctx.fill();
 
@@ -422,24 +492,37 @@ const Renderer = {
 
         this._specHighlight(ctx, x, y - 14, 24, 5);
 
-        // Exposed engine block with metallic gradient
-        const eg = ctx.createLinearGradient(x, y - 52, x, y - 34);
-        eg.addColorStop(0, '#999');
-        eg.addColorStop(0.5, '#888');
+        // Exposed engine block — BIGGER, with individual cylinders
+        const eg = ctx.createLinearGradient(x, y - 56, x, y - 34);
+        eg.addColorStop(0, '#aaa');
+        eg.addColorStop(0.3, '#999');
+        eg.addColorStop(0.6, '#888');
         eg.addColorStop(1, '#555');
         ctx.fillStyle = eg;
-        ctx.fillRect(x - 10, y - 52, 20, 18);
-        // Intake stacks with gradient
-        ctx.fillStyle = this._bodyGrad(ctx, x, y - 58, y - 50, c.accentColor);
-        ctx.fillRect(x - 8, y - 58, 5, 8);
-        ctx.fillRect(x - 1, y - 58, 5, 8);
-        ctx.fillRect(x + 6, y - 58, 5, 8);
+        ctx.fillRect(x - 14, y - 56, 28, 22);
+        // Individual cylinder heads
+        ctx.fillStyle = '#777';
+        for (let i = -2; i <= 2; i++) {
+            ctx.beginPath();
+            ctx.arc(x + i * 5.5, y - 40, 3, 0, Math.PI, true);
+            ctx.fill();
+        }
+        // Intake stacks with gradient (taller)
+        ctx.fillStyle = this._bodyGrad(ctx, x, y - 64, y - 54, c.accentColor);
+        ctx.fillRect(x - 10, y - 64, 6, 10);
+        ctx.fillRect(x - 2, y - 64, 6, 10);
+        ctx.fillRect(x + 6, y - 64, 6, 10);
+        // Dark intake openings
+        ctx.fillStyle = '#222';
+        ctx.fillRect(x - 9, y - 64, 4, 3);
+        ctx.fillRect(x - 1, y - 64, 4, 3);
+        ctx.fillRect(x + 7, y - 64, 4, 3);
         // Valve covers
-        const vg = ctx.createLinearGradient(x, y - 42, x, y - 39);
+        const vg = ctx.createLinearGradient(x, y - 44, x, y - 41);
         vg.addColorStop(0, '#777');
         vg.addColorStop(1, '#444');
         ctx.fillStyle = vg;
-        ctx.fillRect(x - 9, y - 42, 18, 3);
+        ctx.fillRect(x - 13, y - 44, 26, 3);
 
         // Chopped window with reflection
         ctx.fillStyle = this._windowGrad(ctx, x, y - 33, y - 25);
@@ -591,6 +674,15 @@ const Renderer = {
         // Round taillights with glow (iconic 911)
         this._glowTaillightRound(ctx, x - 28, y + 4, 6);
         this._glowTaillightRound(ctx, x + 28, y + 4, 6);
+        // Thin LED strip connecting the taillights (modern 911 feature)
+        ctx.save();
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = '#dd2222';
+        ctx.fillRect(x - 22, y + 3, 44, 2);
+        ctx.restore();
+        ctx.fillStyle = 'rgba(255,150,150,0.3)';
+        ctx.fillRect(x - 20, y + 3.5, 40, 1);
 
         // Bumper
         this._drawBumper(ctx, x - 32, y + 14, 64, 5);
@@ -610,61 +702,81 @@ const Renderer = {
         ctx.beginPath(); ctx.moveTo(x + 38, y); ctx.lineTo(x + 30, y); ctx.stroke();
     },
 
-    // --- PORSCHE DAKAR: raised 911, roof rack + lights, fender flares ---
+    // --- PORSCHE DAKAR: raised 911, roof basket, full-width LED bar, black cladding ---
     _drawDakar(ctx, x, y, c) {
-        this._drawShadow(ctx, x, y + 22, 48, 10);
+        this._drawShadow(ctx, x, y + 24, 52, 10);
 
-        // Chunky rally tires with tread
-        this._draw3DTire(ctx, x - 48, y - 10, 14, 30);
-        this._draw3DTire(ctx, x + 34, y - 10, 14, 30);
-        ctx.fillStyle = '#666';
+        // Chunky off-road tires
+        this._drawWheel(ctx, x - 52, y - 10, 16, 32);
+        this._drawWheel(ctx, x + 36, y - 10, 16, 32);
+        // Tire tread marks
+        ctx.fillStyle = '#555';
         for (let i = 0; i < 4; i++) {
-            ctx.fillRect(x - 46, y - 6 + i * 7, 10, 2);
-            ctx.fillRect(x + 36, y - 6 + i * 7, 10, 2);
+            ctx.fillRect(x - 50, y - 6 + i * 7, 12, 2);
+            ctx.fillRect(x + 38, y - 6 + i * 7, 12, 2);
         }
 
-        // Body with gradient
+        // Body with gradient — 911 curves
         ctx.fillStyle = this._bodyGrad(ctx, x, y - 44, y + 16, c.bodyColor);
         ctx.beginPath();
+        ctx.moveTo(x - 38, y + 16);
+        ctx.lineTo(x - 40, y - 6);
+        ctx.bezierCurveTo(x - 42, y - 22, x - 36, y - 36, x - 20, y - 44);
+        ctx.lineTo(x + 20, y - 44);
+        ctx.bezierCurveTo(x + 36, y - 36, x + 42, y - 22, x + 40, y - 6);
+        ctx.lineTo(x + 38, y + 16);
+        ctx.closePath();
+        ctx.fill();
+
+        this._specHighlight(ctx, x, y - 16, 28, 5);
+
+        // Black plastic fender flares (wider, more prominent Dakar cladding)
+        ctx.fillStyle = c.accentColor; // #1a1a1a black cladding
+        ctx.beginPath();
+        ctx.moveTo(x - 40, y + 16);
+        ctx.quadraticCurveTo(x - 54, y + 0, x - 42, y - 16);
+        ctx.lineTo(x - 38, y - 16);
+        ctx.quadraticCurveTo(x - 46, y + 0, x - 36, y + 16);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x + 40, y + 16);
+        ctx.quadraticCurveTo(x + 54, y + 0, x + 42, y - 16);
+        ctx.lineTo(x + 38, y - 16);
+        ctx.quadraticCurveTo(x + 46, y + 0, x + 36, y + 16);
+        ctx.closePath();
+        ctx.fill();
+
+        // Black lower cladding (bottom section of rear)
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath();
         ctx.moveTo(x - 36, y + 16);
-        ctx.lineTo(x - 38, y - 8);
-        ctx.bezierCurveTo(x - 40, y - 22, x - 34, y - 36, x - 18, y - 44);
-        ctx.lineTo(x + 18, y - 44);
-        ctx.bezierCurveTo(x + 34, y - 36, x + 40, y - 22, x + 38, y - 8);
+        ctx.lineTo(x - 34, y + 4);
+        ctx.lineTo(x + 34, y + 4);
         ctx.lineTo(x + 36, y + 16);
         ctx.closePath();
         ctx.fill();
 
-        this._specHighlight(ctx, x, y - 16, 26, 5);
-
-        // Fender flares with gradient
-        const flareGrad = this._bodyGrad(ctx, x, y - 14, y + 16, c.accentColor);
-        ctx.fillStyle = flareGrad;
+        // Roof basket frame (proper cargo rack with cross-bars)
+        ctx.strokeStyle = '#777';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - 20, y - 54, 40, 8);
+        // Cross bars
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(x - 38, y + 16);
-        ctx.quadraticCurveTo(x - 48, y + 0, x - 38, y - 14);
-        ctx.lineTo(x - 36, y - 14);
-        ctx.quadraticCurveTo(x - 42, y + 0, x - 36, y + 16);
-        ctx.closePath();
-        ctx.fill();
+        ctx.moveTo(x - 10, y - 54); ctx.lineTo(x - 10, y - 46);
+        ctx.moveTo(x, y - 54); ctx.lineTo(x, y - 46);
+        ctx.moveTo(x + 10, y - 54); ctx.lineTo(x + 10, y - 46);
+        ctx.stroke();
+        // Rack supports
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(x + 38, y + 16);
-        ctx.quadraticCurveTo(x + 48, y + 0, x + 38, y - 14);
-        ctx.lineTo(x + 36, y - 14);
-        ctx.quadraticCurveTo(x + 42, y + 0, x + 36, y + 16);
-        ctx.closePath();
-        ctx.fill();
+        ctx.moveTo(x - 18, y - 46); ctx.lineTo(x - 16, y - 44);
+        ctx.moveTo(x + 18, y - 46); ctx.lineTo(x + 16, y - 44);
+        ctx.stroke();
 
-        // Roof rack with metallic gradient
-        const rackGrad = ctx.createLinearGradient(x, y - 52, x, y - 45);
-        rackGrad.addColorStop(0, '#777');
-        rackGrad.addColorStop(1, '#444');
-        ctx.fillStyle = rackGrad;
-        ctx.fillRect(x - 18, y - 48, 36, 3);
-        ctx.fillRect(x - 16, y - 52, 3, 6);
-        ctx.fillRect(x + 13, y - 52, 3, 6);
-
-        // Rally lights with glow
+        // Rally lights on rack with glow
         ctx.save();
         ctx.shadowColor = '#f1c40f';
         ctx.shadowBlur = 10;
@@ -673,45 +785,69 @@ const Renderer = {
         ctx.beginPath(); ctx.arc(x, y - 50, 3.5, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(x + 8, y - 50, 3.5, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
-        // Light bright centers
         ctx.fillStyle = '#fffbe6';
         ctx.beginPath(); ctx.arc(x - 8, y - 50, 1.5, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(x, y - 50, 1.5, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(x + 8, y - 50, 1.5, 0, Math.PI * 2); ctx.fill();
 
         // Rear window with reflection
-        ctx.fillStyle = this._windowGrad(ctx, x, y - 40, y - 28);
+        ctx.fillStyle = this._windowGrad(ctx, x, y - 40, y - 26);
         ctx.beginPath();
         ctx.moveTo(x - 14, y - 40);
         ctx.quadraticCurveTo(x, y - 44, x + 14, y - 40);
-        ctx.lineTo(x + 12, y - 28);
-        ctx.lineTo(x - 12, y - 28);
+        ctx.lineTo(x + 12, y - 26);
+        ctx.lineTo(x - 12, y - 26);
         ctx.closePath();
         ctx.fill();
-        this._windowReflection(ctx, x - 10, y - 38, x - 2, y - 30);
+        this._windowReflection(ctx, x - 10, y - 38, x - 2, y - 28);
 
-        // Number plate
-        const npGrad = ctx.createLinearGradient(x - 8, y, x + 8, y);
-        npGrad.addColorStop(0, this._darken(c.stripeColor, 0.1));
-        npGrad.addColorStop(0.5, c.stripeColor);
-        npGrad.addColorStop(1, this._darken(c.stripeColor, 0.1));
-        ctx.fillStyle = npGrad;
-        ctx.fillRect(x - 8, y + 0, 16, 10);
-        ctx.fillStyle = c.accentColor;
-        ctx.font = 'bold 8px monospace';
+        // "PORSCHE" text across rear (iconic feature)
+        ctx.fillStyle = c.stripeColor; // silver
+        ctx.font = 'bold 7px Arial, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('53', x, y + 8);
+        ctx.fillText('PORSCHE', x, y - 17);
 
-        // Taillights with glow
-        this._glowTaillightRound(ctx, x - 26, y + 4, 5);
-        this._glowTaillightRound(ctx, x + 26, y + 4, 5);
+        // === FULL-WIDTH LED TAILLIGHT BAR ===
+        // THE defining rear feature of the Dakar — connects left to right
+        ctx.save();
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur = 12;
+        const barGrad = ctx.createLinearGradient(x - 34, y, x + 34, y);
+        barGrad.addColorStop(0, '#cc0000');
+        barGrad.addColorStop(0.15, '#ff2222');
+        barGrad.addColorStop(0.5, '#ff4444');
+        barGrad.addColorStop(0.85, '#ff2222');
+        barGrad.addColorStop(1, '#cc0000');
+        ctx.fillStyle = barGrad;
+        ctx.fillRect(x - 34, y - 10, 68, 4);
+        ctx.restore();
+        // Bright center glow line
+        ctx.fillStyle = 'rgba(255,180,180,0.5)';
+        ctx.fillRect(x - 30, y - 9, 60, 2);
 
-        // Skid plate with metallic look
-        const spGrad = ctx.createLinearGradient(x, y + 16, x, y + 19);
-        spGrad.addColorStop(0, '#aaa');
-        spGrad.addColorStop(1, '#666');
-        ctx.fillStyle = spGrad;
-        ctx.fillRect(x - 24, y + 16, 48, 3);
+        // Diffuser with oval exhaust cutouts
+        const diffGrad = ctx.createLinearGradient(x, y + 12, x, y + 20);
+        diffGrad.addColorStop(0, '#333');
+        diffGrad.addColorStop(1, '#111');
+        ctx.fillStyle = diffGrad;
+        ctx.fillRect(x - 30, y + 12, 60, 8);
+        // Oval exhaust cutouts
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.ellipse(x - 14, y + 16, 6, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(x + 14, y + 16, 6, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Chrome exhaust trim
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(x - 14, y + 16, 6, 3, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(x + 14, y + 16, 6, 3, 0, 0, Math.PI * 2);
+        ctx.stroke();
     },
 
     // --- DEORA II: tall wedge, surfboard, wide glass ---
@@ -720,17 +856,17 @@ const Renderer = {
         this._draw3DTire(ctx, x - 42, y - 6, 11, 26);
         this._draw3DTire(ctx, x + 31, y - 6, 11, 26);
 
-        // Tall wedge body with gradient
+        // Tall wedge body with gradient — smooth curves
         ctx.fillStyle = this._bodyGrad(ctx, x, y - 46, y + 18, c.bodyColor);
         ctx.beginPath();
         ctx.moveTo(x - 34, y + 18);
-        ctx.lineTo(x - 36, y - 4);
-        ctx.lineTo(x - 38, y - 22);
-        ctx.lineTo(x - 32, y - 46);
+        ctx.bezierCurveTo(x - 36, y + 8, x - 37, y + 0, x - 36, y - 4);
+        ctx.bezierCurveTo(x - 37, y - 12, x - 38, y - 18, x - 38, y - 22);
+        ctx.bezierCurveTo(x - 36, y - 34, x - 34, y - 42, x - 32, y - 46);
         ctx.lineTo(x + 32, y - 46);
-        ctx.lineTo(x + 38, y - 22);
-        ctx.lineTo(x + 36, y - 4);
-        ctx.lineTo(x + 34, y + 18);
+        ctx.bezierCurveTo(x + 34, y - 42, x + 36, y - 34, x + 38, y - 22);
+        ctx.bezierCurveTo(x + 38, y - 18, x + 37, y - 12, x + 36, y - 4);
+        ctx.bezierCurveTo(x + 37, y + 0, x + 36, y + 8, x + 34, y + 18);
         ctx.closePath();
         ctx.fill();
 
@@ -830,17 +966,17 @@ const Renderer = {
         this._draw3DTire(ctx, x - 48, y - 4, 12, 24);
         this._draw3DTire(ctx, x + 36, y - 4, 12, 24);
 
-        // Ultra-low body with gradient
+        // Ultra-low body with gradient — angular but flowing
         ctx.fillStyle = this._bodyGrad(ctx, x, y - 34, y + 18, c.bodyColor);
         ctx.beginPath();
         ctx.moveTo(x - 42, y + 18);
-        ctx.lineTo(x - 44, y - 2);
-        ctx.lineTo(x - 38, y - 22);
-        ctx.lineTo(x - 20, y - 34);
+        ctx.bezierCurveTo(x - 44, y + 8, x - 45, y + 0, x - 44, y - 2);
+        ctx.bezierCurveTo(x - 42, y - 12, x - 40, y - 18, x - 38, y - 22);
+        ctx.bezierCurveTo(x - 32, y - 28, x - 26, y - 32, x - 20, y - 34);
         ctx.lineTo(x + 20, y - 34);
-        ctx.lineTo(x + 38, y - 22);
-        ctx.lineTo(x + 44, y - 2);
-        ctx.lineTo(x + 42, y + 18);
+        ctx.bezierCurveTo(x + 26, y - 32, x + 32, y - 28, x + 38, y - 22);
+        ctx.bezierCurveTo(x + 40, y - 18, x + 42, y - 12, x + 44, y - 2);
+        ctx.bezierCurveTo(x + 45, y + 0, x + 44, y + 8, x + 42, y + 18);
         ctx.closePath();
         ctx.fill();
 
@@ -880,12 +1016,12 @@ const Renderer = {
         ctx.closePath();
         ctx.fill();
 
-        // Neon accent lines with glow
+        // Neon accent lines with double glow (outer soft glow + inner bright)
         ctx.save();
         ctx.strokeStyle = c.stripeColor;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 4;
         ctx.shadowColor = c.stripeColor;
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 18;
         ctx.beginPath();
         ctx.moveTo(x - 36, y + 4);
         ctx.lineTo(x + 36, y + 4);
@@ -897,6 +1033,22 @@ const Renderer = {
         ctx.beginPath();
         ctx.moveTo(x, y - 18);
         ctx.lineTo(x + 30, y + 0);
+        ctx.stroke();
+        // Second pass — bright core
+        ctx.lineWidth = 1.5;
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#aaffcc';
+        ctx.beginPath();
+        ctx.moveTo(x - 34, y + 4);
+        ctx.lineTo(x + 34, y + 4);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y - 17);
+        ctx.lineTo(x - 28, y + 0);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y - 17);
+        ctx.lineTo(x + 28, y + 0);
         ctx.stroke();
         ctx.restore();
 
@@ -1175,13 +1327,13 @@ const Renderer = {
         ctx.fillStyle = this._bodyGrad(ctx, x, y - 44, y + 18, c.bodyColor);
         ctx.beginPath();
         ctx.moveTo(x - 36, y + 18);
-        ctx.lineTo(x - 38, y - 8);
-        ctx.lineTo(x - 28, y - 36);
-        ctx.lineTo(x - 16, y - 44);
+        ctx.bezierCurveTo(x - 38, y + 6, x - 39, y - 2, x - 38, y - 8);
+        ctx.bezierCurveTo(x - 36, y - 20, x - 32, y - 30, x - 28, y - 36);
+        ctx.bezierCurveTo(x - 24, y - 40, x - 20, y - 43, x - 16, y - 44);
         ctx.lineTo(x + 16, y - 44);
-        ctx.lineTo(x + 28, y - 36);
-        ctx.lineTo(x + 38, y - 8);
-        ctx.lineTo(x + 36, y + 18);
+        ctx.bezierCurveTo(x + 20, y - 43, x + 24, y - 40, x + 28, y - 36);
+        ctx.bezierCurveTo(x + 32, y - 30, x + 36, y - 20, x + 38, y - 8);
+        ctx.bezierCurveTo(x + 39, y - 2, x + 38, y + 6, x + 36, y + 18);
         ctx.closePath();
         ctx.fill();
 
@@ -1270,22 +1422,66 @@ const Renderer = {
         ctx.fill();
     },
 
+    _drawWheel(ctx, x, y, w, h) {
+        const cx = x + w / 2;
+        const cy = y + h / 2;
+
+        // Tire rubber — rounded rectangle
+        const tireGrad = ctx.createLinearGradient(x, y, x + w, y);
+        tireGrad.addColorStop(0, '#080808');
+        tireGrad.addColorStop(0.15, '#1a1a1a');
+        tireGrad.addColorStop(0.5, '#252525');
+        tireGrad.addColorStop(0.85, '#1a1a1a');
+        tireGrad.addColorStop(1, '#080808');
+        ctx.fillStyle = tireGrad;
+        const rr = Math.min(w * 0.35, 4);
+        ctx.beginPath();
+        ctx.moveTo(x + rr, y);
+        ctx.lineTo(x + w - rr, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+        ctx.lineTo(x + w, y + h - rr);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+        ctx.lineTo(x + rr, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+        ctx.lineTo(x, y + rr);
+        ctx.quadraticCurveTo(x, y, x + rr, y);
+        ctx.closePath();
+        ctx.fill();
+
+        // Rim face (visible alloy wheel within the tire)
+        const rimR = w / 2 - 1.5;
+        const rimGrad = ctx.createRadialGradient(cx - 0.5, cy - 1, 0, cx, cy, rimR);
+        rimGrad.addColorStop(0, '#bbb');
+        rimGrad.addColorStop(0.35, '#999');
+        rimGrad.addColorStop(0.75, '#666');
+        rimGrad.addColorStop(1, '#444');
+        ctx.fillStyle = rimGrad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, rimR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 5-spoke pattern
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 5; i++) {
+            const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
+            const spokeR = rimR * 0.85;
+            ctx.beginPath();
+            ctx.moveTo(cx + Math.cos(angle) * 1.5, cy + Math.sin(angle) * 1.5);
+            ctx.lineTo(cx + Math.cos(angle) * spokeR, cy + Math.sin(angle) * spokeR);
+            ctx.stroke();
+        }
+
+        // Center hub cap
+        ctx.fillStyle = '#ddd';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+    },
+
+    // Keep old name as alias for backwards compat
     _draw3DTire(ctx, x, y, w, h) {
-        const g = ctx.createLinearGradient(x, y, x + w, y);
-        g.addColorStop(0, '#080808');
-        g.addColorStop(0.2, '#282828');
-        g.addColorStop(0.5, '#333');
-        g.addColorStop(0.8, '#282828');
-        g.addColorStop(1, '#080808');
-        ctx.fillStyle = g;
-        ctx.fillRect(x, y, w, h);
-        // Rim highlight
-        ctx.strokeStyle = '#555';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-        // Sidewall sheen
-        ctx.fillStyle = 'rgba(255,255,255,0.06)';
-        ctx.fillRect(x + w * 0.3, y + 2, w * 0.4, h - 4);
+        this._drawWheel(ctx, x, y, w, h);
     },
 
     _specHighlight(ctx, x, y, w, h) {
